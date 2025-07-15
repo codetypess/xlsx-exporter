@@ -12,7 +12,9 @@ import {
     getRows,
 } from "./xlsx";
 
-export const convertToConfig = (sheet: Sheet) => {
+export const convertToDefine = (sheet: Sheet) => {
+    checkType(sheet.data, Type.Sheet);
+
     const keys = filterKeys(sheet.data, true)
         .map((k) => Number(k))
         .filter((v) => !isNaN(v));
@@ -21,7 +23,7 @@ export const convertToConfig = (sheet: Sheet) => {
     const enumOptions: TObject[] = [];
 
     config["!name"] = sheet.name;
-    config["!type"] = Type.Config;
+    config["!type"] = Type.Define;
 
     for (let i = 0; i < keys.length; i++) {
         const idx = keys[i];
@@ -29,6 +31,11 @@ export const convertToConfig = (sheet: Sheet) => {
 
         const row = checkType<TRow>(sheet.data[idx], Type.Row);
         const value = convertValue(row["value"], row["value_type"].v as string);
+
+        if (!row["key1"] && row["key"]) {
+            row["key1"] = row["key"];
+        }
+
         let t = config;
         for (let n = 1; n <= 10; n++) {
             const key = toString(row[`key${n}`]);
@@ -38,8 +45,12 @@ export const convertToConfig = (sheet: Sheet) => {
                     t[key] ||= {};
                     t = t[key] as TObject;
                 } else {
-                    value["!comment"] = toString(row["value_comment"]);
                     t[key] = value;
+                    if (row["value_comment"]?.v) {
+                        value["!comment"] = toString(row["value_comment"]);
+                    } else if (n === 1 && row["comment"]?.v) {
+                        value["!comment"] = toString(row["comment"]);
+                    }
                 }
             } else {
                 if (!t["!enum"]) {
@@ -95,16 +106,18 @@ export const convertToConfig = (sheet: Sheet) => {
     return config;
 };
 
-export const convertToKeyValue = (
+export const convertToConfig = (
     sheet: Sheet,
     nameKey = "key",
     valueKey = "value",
     typeKey = "value_type",
     commentKey = "value_comment"
 ) => {
+    checkType(sheet.data, Type.Sheet);
+
     const result: TObject = {};
     result["!name"] = sheet.name;
-    result["!type"] = Type.KeyValue;
+    result["!type"] = Type.Config;
     const rows = filterValues<TObject>(sheet.data).map((v) => checkType<TRow>(v, Type.Row));
     for (const row of rows) {
         assert(row[nameKey]?.v !== undefined, `Key '${nameKey}' is not found`);
@@ -138,6 +151,8 @@ export const convertToKeyValue = (
         }
  */
 export const convertToMap = (sheet: Sheet, ...keys: string[]) => {
+    checkType(sheet.data, Type.Sheet);
+
     const result: { [key: string]: TValue } = {};
     const rows = filterValues<TObject>(sheet.data).map((v) => checkType<TRow>(v, Type.Row));
     for (const row of rows) {
@@ -163,6 +178,8 @@ export const convertToMap = (sheet: Sheet, ...keys: string[]) => {
 };
 
 export const convertToFold = (sheet: Sheet, idxKey: string, ...foldKeys: string[]) => {
+    checkType(sheet.data, Type.Sheet);
+
     const rows = filterValues<TObject>(sheet.data).map((v) => checkType<TRow>(v, Type.Row));
     if (foldKeys.length === 0) {
         const result: { [key: string]: TArray } = {};

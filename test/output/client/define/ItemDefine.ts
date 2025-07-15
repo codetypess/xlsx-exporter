@@ -58,11 +58,14 @@ export enum QualityType {
 }
 
 
-export const ItemConfig = {
+export const ItemDefine = {
     /**
      * 背包类型
      */
     BAG_TYPE: BagType,
+    /**
+     * 首位唯一id
+     */
     FIRST_ITEM_UID: 1000000,
     /**
      * 物品子类型

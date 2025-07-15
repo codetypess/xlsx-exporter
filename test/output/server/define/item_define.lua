@@ -7,6 +7,7 @@ return {
         -- 宝箱背包
         CHEST = 2,
     },
+    -- 首位唯一id
     FIRST_ITEM_UID = 1000000,
     ---@enum ItemType
     -- 物品子类型

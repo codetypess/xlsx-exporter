@@ -7,11 +7,11 @@ const t = Date.now();
 const OUTPUT_DIR = "test/output";
 
 xlsx.registerWriter("client", (path, data, processor) => {
-    if (processor === "config") {
+    if (processor === "define") {
         const name = xlsx.toPascalCase(`${xlsx.filename(path)}_${data["!name"]}`);
         const marshal = `export const ${name} = `;
         xlsx.writeFile(
-            `${OUTPUT_DIR}/client/config/${name}.ts`,
+            `${OUTPUT_DIR}/client/define/${name}.ts`,
             xlsx.stringifyTs(data, { indent: 4, marshal })
         );
     } else if (processor === "stringify") {
@@ -37,11 +37,11 @@ xlsx.registerWriter("client", (path, data, processor) => {
 });
 
 xlsx.registerWriter("server", (path, data, processor) => {
-    if (processor === "config") {
+    if (processor === "define") {
         const name = `${xlsx.filename(path)}_${data["!name"]}`;
         const marshal = `return `;
         xlsx.writeFile(
-            `${OUTPUT_DIR}/server/config/${name}.lua`,
+            `${OUTPUT_DIR}/server/define/${name}.lua`,
             xlsx.stringifyLua(data, { indent: 4, marshal })
         );
     } else if (processor === "stringify") {

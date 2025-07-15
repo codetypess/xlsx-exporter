@@ -3,7 +3,7 @@ import * as xlsx from "..";
 {
     let qualityTypes: Record<string, unknown> | undefined;
     xlsx.registerType("quality", "int", (value) => {
-        qualityTypes ??= xlsx.convertToType("item.xlsx", "config", "QUALITY");
+        qualityTypes ??= xlsx.convertToType("item.xlsx", "define", "QUALITY");
         return qualityTypes[value];
     });
 }
@@ -11,7 +11,7 @@ import * as xlsx from "..";
 {
     let taskTypes: Record<string, unknown> | undefined;
     xlsx.registerType("task_type", "int", (value) => {
-        taskTypes ??= xlsx.convertToType("task.xlsx", "config", "TASK_TYPE");
+        taskTypes ??= xlsx.convertToType("task.xlsx", "define", "TASK_TYPE");
         return taskTypes[value];
     });
 }
@@ -34,7 +34,7 @@ import * as xlsx from "..";
 {
     let itemTypes: Record<string, unknown> | undefined;
     xlsx.registerType("item_type", "int", (value) => {
-        itemTypes ??= xlsx.convertToType("item.xlsx", "config", "ITEM_TYPE");
+        itemTypes ??= xlsx.convertToType("item.xlsx", "define", "ITEM_TYPE");
         return itemTypes[value];
     });
 }
@@ -42,7 +42,7 @@ import * as xlsx from "..";
 {
     let bagTypes: Record<string, unknown> | undefined;
     xlsx.registerType("bag_type", "int", (value) => {
-        bagTypes ??= xlsx.convertToType("item.xlsx", "config", "BAG_TYPE");
+        bagTypes ??= xlsx.convertToType("item.xlsx", "define", "BAG_TYPE");
         return bagTypes[value];
     });
 }

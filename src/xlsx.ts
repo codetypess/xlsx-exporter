@@ -11,8 +11,8 @@ export const enum Type {
     Row = "xlsx.type.row",
     Cell = "xlsx.type.cell",
     Object = "xlsx.type.object",
+    Define = "xlsx.type.define",
     Config = "xlsx.type.config",
-    KeyValue = "xlsx.type.keyvalue",
     Map = "xlsx.type.map",
     Fold = "xlsx.type.fold",
     Sheet = "xlsx.type.sheet",
@@ -644,18 +644,16 @@ export const copyOf = (workbook: Workbook, writer: string, headerOnly: boolean =
         const resultSheet: Sheet = { ...sheet, data: {} };
         result.sheets[sheetName] = resultSheet;
         if (!headerOnly) {
+            resultSheet.data = copy(sheet.data);
             if (sheet.data["!type"] === Type.Sheet) {
                 for (const k of filterKeys(sheet.data)) {
-                    const row = copy(checkType<TRow>(sheet.data[k], Type.Row));
+                    const row = checkType<TRow>(sheet.data[k], Type.Row);
                     for (const k in row) {
                         if (!k.startsWith("!") && typeof row[k] === "object") {
                             row[k]["!row"] = row;
                         }
                     }
-                    resultSheet.data[k] = row;
                 }
-            } else {
-                resultSheet.data = copy(sheet.data);
             }
         }
         resultSheet.fields = sheet.fields.filter((f) => f.writers.includes(writer));

@@ -1,4 +1,4 @@
-import { convertToConfig, convertToFold, convertToKeyValue, convertToMap } from "./transform";
+import { convertToConfig, convertToDefine, convertToFold, convertToMap } from "./transform";
 import { filterKeys } from "./util";
 import { assert, copyOf, error, Processor, Sheet, TObject, Workbook, writers } from "./xlsx";
 
@@ -53,15 +53,16 @@ export const StringifyProcessor: Processor = (
 };
 
 //-----------------------------------------------------------------------------
-// KeyValue
+// Define
 //-----------------------------------------------------------------------------
-export const KeyValueProcessor: Processor = (workbook: Workbook, sheet: Sheet, action?: string) => {
-    sheet.data = convertToKeyValue(sheet);
-    if (action === "write_config") {
-        for (const k in writers) {
-            const writer = writers[k];
-            writer(workbook.path, sheet.data, "config");
-        }
+export const DefineProcessor: Processor = (workbook: Workbook, sheet: Sheet, action?: string) => {
+    const data = convertToDefine(sheet);
+    for (const k in writers) {
+        const writer = writers[k];
+        writer(workbook.path, data, "define");
+    }
+    if (action !== "keep_sheet") {
+        delete workbook.sheets[sheet.name];
     }
 };
 
@@ -69,12 +70,7 @@ export const KeyValueProcessor: Processor = (workbook: Workbook, sheet: Sheet, a
 // Config
 //-----------------------------------------------------------------------------
 export const ConfigProcessor: Processor = (workbook: Workbook, sheet: Sheet) => {
-    const config = convertToConfig(sheet);
-    for (const k in writers) {
-        const writer = writers[k];
-        writer(workbook.path, config, "config");
-    }
-    delete workbook.sheets[sheet.name];
+    sheet.data = convertToConfig(sheet);
 };
 
 //-----------------------------------------------------------------------------

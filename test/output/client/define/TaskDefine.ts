@@ -85,7 +85,7 @@ export enum TaskType {
 }
 
 
-export const TaskConfig = {
+export const TaskDefine = {
     TASK: {
         /**
          * 新手最后一个任务id
