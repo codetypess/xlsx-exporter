@@ -43,7 +43,7 @@ export type Tag = {
 
 export type TCell = {
     /** converted value */
-    v: unknown;
+    v: TValue;
     /** location: A1 */
     r: string;
     /** original string value */
@@ -79,7 +79,7 @@ export type Workbook = {
     sheets: Record<string, Sheet>;
 };
 
-export type Convertor = (str: string) => unknown | null;
+export type Convertor = (str: string) => TValue;
 type RealType = "int" | "float" | "string" | "bool" | null;
 type ConvertorType = { realtype?: RealType; exec: Convertor };
 
@@ -201,20 +201,26 @@ export function convertValue(cell: TCell | string, typename: string) {
     }
     if (typeof cell === "string") {
         const v = convertor.exec(cell);
-        if (v === null || v === undefined || v === "") {
+        if (v === null || v === undefined) {
             error(`Convert value error: '${cell}' => type '${typename}'`);
         }
         return v as TValue;
     } else {
-        if (typename.endsWith("?") && cell.v === "") {
+        if (typename.endsWith("?") && (cell.v === "" || cell.v === null)) {
             cell.s = "null";
             cell.v = null;
         } else {
             const v = cell.v;
+            if (v && typeof v === "object" && v["!type"] === typename) {
+                return cell;
+            }
             cell.s = toString(cell);
             cell.v = convertor.exec(cell.s);
-            if (cell.v === null || cell.v === undefined || cell.v === "") {
+            if (cell.v === null || cell.v === undefined) {
                 error(`Convert value error at ${cell.r}: '${v}' => type '${typename}'`);
+            }
+            if (typeof cell.v === "object") {
+                cell.v["!type"] = typename;
             }
         }
         return cell;
@@ -224,16 +230,19 @@ export function convertValue(cell: TCell | string, typename: string) {
 const parseProcessor = (str: string) => {
     return str
         .split(/[;\n\r]+/)
-        .filter((s) => s.trim())
+        .map((s) => s.trim())
+        .filter((s) => s)
         .map((s) => {
             /**
              * @Processor
              * @Processor(arg1, arg2, ...)
              */
-            const match = s.match(/@(\w+)(?:\((.*?)\))?/);
+            const match = s.match(/^@(\w+)(?:\((.*?)\))?$/);
             const [, name = "", args = ""] = match ?? [];
-            if (!processors[name]) {
-                error(`Processor not found: '${name}'`);
+            if (!name) {
+                error(`Parse processor error: '${s}'`);
+            } else if (!processors[name]) {
+                error(`Processor not found: '${s}'`);
             }
             return {
                 name,
@@ -247,9 +256,13 @@ const parseChecker = (path: string, refer: string, str: string) => {
     if (str === "x") {
         return [];
     }
+    if (str.trim() === "") {
+        error(`No checker defined at ${refer}`);
+    }
     return str
         .split(/[;\n\r]+/)
-        .filter((s) => !!s.trim())
+        .map((s) => s.trim())
+        .filter((s) => s)
         .map((s) => {
             const force = s.startsWith("!");
             if (force) {
@@ -262,7 +275,7 @@ const parseChecker = (path: string, refer: string, str: string) => {
                  * @Checker
                  * @Checker(arg1, arg2, ...)
                  */
-                const [, name = "", arg = ""] = s.match(/@(\w+)(?:\((.*?)\))?/) ?? [];
+                const [, name = "", arg = ""] = s.match(/^@(\w+)(?:\((.*?)\))?$/) ?? [];
                 const parser = checkerParsers[name];
                 if (!parser) {
                     error(`Checker parser not found at ${refer}: '${name}'`);
