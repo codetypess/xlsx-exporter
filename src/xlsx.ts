@@ -379,13 +379,15 @@ const parseChecker = (path: string, refer: string, index: number, str: string) =
                 };
             } else if (s.includes("#")) {
                 /**
-                 * id=task#main.id
+                 * task#main.id=$.id
                  * task#main.id
                  * #main.id
+                 * #main.type=$&key2=MAIN&#main.condition=mainline_event
+                 * [file]#<sheet|*>.<key>[=$[.<key>][[&<key=value>]...]]
                  */
-                const [, row = "", file = "", sheet = "", column = ""] =
-                    s.match(/^(?:\[?(.+)\]?==)?([^=]*)#([^.]+)\.([^.]+)$/) ?? [];
-                if (!sheet || !column) {
+                const [, file = "", sheet = "", key = "", value = "", filter = ""] =
+                    s.match(/^([^#=]*)#([^.]+)\.(\w+)(?:=\$(?:\.(\w+))?(?:&(.+))?)?$/) ?? [];
+                if (!sheet || !key) {
                     error(`Invalid index checker at ${refer}: '${s}'`);
                 }
                 const parser = checkerParsers[INDEX_CHECKER];
@@ -393,7 +395,7 @@ const parseChecker = (path: string, refer: string, index: number, str: string) =
                     name: INDEX_CHECKER,
                     force,
                     def: s,
-                    exec: parser(makeFilePath(file || path), sheet, row, column),
+                    exec: parser(makeFilePath(file || path), sheet, key, value, filter),
                 };
             } else if (s !== "x") {
                 /**

@@ -267,11 +267,11 @@ export interface TaskEvents {
      */
     args: { v:unknown };
     /**
-     * 奖励 (location: H1) (checker: id==item#item.id) (writer: client|server)
+     * 奖励 (location: H1) (checker: item#item.id=$.id) (writer: client|server)
      */
     reward: { v:unknown };
     /**
-     * vip奖励 (location: I1) (checker: id==item#*.id) (writer: client|server)
+     * vip奖励 (location: I1) (checker: item#*.id=$.id) (writer: client|server)
      */
     vip_reward: { v:unknown };
     /**
@@ -339,7 +339,7 @@ export interface TaskMain {
      */
     sort: { v:number };
     /**
-     * 任务类型 (location: D1) (checker: #define.value&key1=TASK_TYPE) (writer: client|server)
+     * 任务类型 (location: D1) (checker: #define.value=$&key1=TASK_TYPE) (writer: client|server)
      */
     type: { v:number };
     /**

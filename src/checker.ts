@@ -1,5 +1,5 @@
 import { ColumnIndexer, RowFilter } from "./indexer";
-import { assert, CheckerParser, error, get, TCell } from "./xlsx";
+import { assert, CheckerParser, error, get, TCell, TObject } from "./xlsx";
 
 export const SizeCheckerParser: CheckerParser = (arg) => {
     const length = Number(arg);
@@ -49,76 +49,81 @@ type ValueQuery = {
     readonly filter: readonly RowFilter[];
 };
 
-const parseQuery = (query?: string): ValueQuery => {
-    if (!query) {
-        return { key: "", filter: [] };
+const parseQuery = (sheet: string, key: string, value: string, filter: string) => {
+    const valueFilter: RowFilter[] = [];
+    const targetFilter: RowFilter[] = [];
+    for (const match of filter.matchAll(/(?:#(\w+)\.)?([^=&]+)=([^=&]+)/g)) {
+        const [_, filterSheet, filterKey, filterValue] = match;
+        if (!filterSheet) {
+            valueFilter.push({ key: filterKey, value: filterValue });
+        } else {
+            assert(filterSheet === sheet, `Invalid sheet: '${filterSheet}'`);
+            targetFilter.push({ key: filterKey, value: filterValue });
+        }
     }
-    const mainKey = query.match(/^\w+/)?.[0] ?? "";
-    const filter = Array.from(query.matchAll(/([^=&]+)=([^=&]+)/g)).map(([_, key, value]) => {
-        key = key.trim();
-        value = value.trim();
-        const num = Number(value);
-        return { key: key, value: isNaN(num) ? value : num };
-    });
-    return { key: mainKey, filter };
+    return {
+        value: {
+            key: value,
+            filter: valueFilter,
+        } as ValueQuery,
+        target: {
+            key: key,
+            filter: targetFilter,
+        },
+    };
 };
 
-export const IndexCheckerParser: CheckerParser = (file, sheetName, rowQuery, columnQuery) => {
-    const queryColumn = parseQuery(columnQuery);
-    const queryRow = parseQuery(rowQuery);
-
-    assert(!!queryColumn.key, `Invalid key: '${columnQuery}'`);
-
-    const indexer = new ColumnIndexer(file, sheetName, queryColumn.key);
+// #main.type=$&key2=MAIN&#main.condition=mainline_event
+export const IndexCheckerParser: CheckerParser = (file, sheet, key, value, filter) => {
+    const query = parseQuery(sheet, key, value, filter);
+    const indexer = new ColumnIndexer(file, sheet, query.target.key);
 
     const check = (value: unknown) => {
-        if (queryColumn.filter.length) {
-            return indexer.has(value as string | number, queryColumn.filter);
+        if (query.target.filter.length) {
+            return indexer.has(value as string | number, query.target.filter);
         } else {
             return indexer.has(value as string | number);
         }
     };
 
     return (cell, row, field, errors) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const value: any = cell.v;
-        if (value === null || value === undefined) {
+        if (cell.v === null || cell.v === undefined) {
             error(`Invalid value at ${cell.r} in ${field.path}#${field.sheet}`);
         }
 
-        if (queryRow.filter.length > 0) {
+        if (query.value.filter.length > 0) {
             // skip cell if not match any filter
-            for (const { key, value } of queryRow.filter) {
-                const cell = row[key] as TCell | undefined;
-                if (!cell || cell.v !== value) {
+            for (const rowFilter of query.value.filter) {
+                const rowCell = row[rowFilter.key] as TCell | undefined;
+                if (!rowCell || rowCell.v !== rowFilter.value) {
                     return true;
                 }
             }
         }
 
-        if (typeof value !== "object") {
-            return check(value);
-        } else if (Array.isArray(value)) {
+        if (typeof cell.v !== "object") {
+            return check(cell.v);
+        } else if (Array.isArray(cell.v)) {
             /**
              * [value, value, ...]
              * [{idx: value}, {idx: value}, ...]
              */
             let found = 0;
-            for (const item of value) {
-                if (!queryRow.key) {
+            for (const item of cell.v as TObject[]) {
+                if (!query.value.key) {
                     if (check(item)) {
                         found++;
                     }
-                } else if (typeof item === "object" && check(item[queryRow.key])) {
+                } else if (typeof item === "object" && check(item[query.value.key])) {
                     found++;
                 }
             }
-            return found === value.length;
+            return found === cell.v.length;
         } else {
             /**
              * {idx: value}
              */
-            return typeof value === "object" && check(value[queryRow.key]);
+            return typeof cell.v === "object" && check((cell.v as TObject)[query.value.key]);
         }
     };
 };

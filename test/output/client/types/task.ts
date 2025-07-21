@@ -187,11 +187,11 @@ export interface GeneratedTaskEventsRow {
      */
     readonly desc: string;
     /**
-     * 奖励 (location: H1) (checker: id==item#item.id)
+     * 奖励 (location: H1) (checker: item#item.id=$.id)
      */
     readonly reward: unknown;
     /**
-     * vip奖励 (location: I1) (checker: id==item#*.id)
+     * vip奖励 (location: I1) (checker: item#*.id=$.id)
      */
     readonly vip_reward: unknown;
     /**
@@ -219,11 +219,11 @@ export interface GeneratedTaskEventsCol {
      */
     readonly desc: (string)[];
     /**
-     * 奖励 (location: H1) (checker: id==item#item.id)
+     * 奖励 (location: H1) (checker: item#item.id=$.id)
      */
     readonly reward: (unknown)[];
     /**
-     * vip奖励 (location: I1) (checker: id==item#*.id)
+     * vip奖励 (location: I1) (checker: item#*.id=$.id)
      */
     readonly vip_reward: (unknown)[];
     /**
@@ -331,7 +331,7 @@ export interface GeneratedTaskMainRow {
      */
     readonly sort: number;
     /**
-     * 任务类型 (location: D1) (checker: #define.value&key1=TASK_TYPE)
+     * 任务类型 (location: D1) (checker: #define.value=$&key1=TASK_TYPE)
      */
     readonly type: number;
     /**
@@ -387,7 +387,7 @@ export interface GeneratedTaskMainCol {
      */
     readonly sort: (number)[];
     /**
-     * 任务类型 (location: D1) (checker: #define.value&key1=TASK_TYPE)
+     * 任务类型 (location: D1) (checker: #define.value=$&key1=TASK_TYPE)
      */
     readonly type: (number)[];
     /**

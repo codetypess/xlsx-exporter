@@ -231,16 +231,16 @@ xlsx.parse(["data/item.xlsx", "data/task.xlsx"]);
 
 ### 高级索引检查器
 
-[[key][&k=1&...]==][file]#\<sheet|\*\>.\<column\>[&f=1&...]
+[file]#<sheet|\*>.`<key>`[=$[.`<key>`][&<key=value>]...]]
 
 [] 表示可选项，<> 表示必选项
 
-- id==#skill.id
-- id==#\*.id
-- id==battle_skill#skill.id
-- id&key1=TASK_TYPE==task#main.type&branch=3
+- #skill.id=$.id
+- #\*.id=$.id
+- battle_skill#skill.id=$.id
+- task#main.type=$.id&#main.branch=3&key2=TASK_TYPE
 
-高级索引检查器由左边（行筛选）、中间（文件表指定）、右边（列筛选）组成，一旦行筛选带 “&” 就表明并不是所有这一列都会参与检查，只有满足所有行筛选项的值才会进行下一步检查。如果列筛选带 “&”，就表明筛选到的值所在行，必须也满足所有列筛选项。
+高级索引检查器带有键值对过滤器，以#sheet开头的，归类到列筛选，其余归类到行筛选，\$ 表示当前单元格的值，\$.id 表示取当前单元格的字段 id 的值，如果当前单元格是数组，则取数组子项的字段 id 的值。一旦有行筛选就表明并不是所有这一列都会参与检查，只有满足所有行筛选项的值才会进行下一步检查。如果有列筛选，就表明筛选到的值所在行，必须也满足所有列筛选项。
 
 ### !@checker
 
