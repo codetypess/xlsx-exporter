@@ -4,7 +4,7 @@ import { assert, CheckerParser, error, get, TCell, TObject } from "./xlsx";
 export const SizeCheckerParser: CheckerParser = (arg) => {
     const length = Number(arg);
     if (isNaN(length)) {
-        error(`Invalid length: '${length}'`);
+        throw new Error(`Invalid length: '${length}'`);
     }
     return (cell, row, field, errors) => {
         if (cell.v instanceof Array) {
@@ -37,7 +37,7 @@ export const RangeCheckerParser: CheckerParser = (arg) => {
     try {
         values = JSON.parse(arg);
     } catch (e) {
-        error(`Invalid range: '${arg}'`);
+        throw new Error(`Invalid range: '${arg}'`);
     }
     return (cell, row, field, errors) => {
         return values.includes(cell.v);
@@ -95,7 +95,12 @@ export const IndexCheckerParser: CheckerParser = (file, sheet, key, value, filte
             // skip cell if not match any filter
             for (const rowFilter of query.value.filter) {
                 const rowCell = row[rowFilter.key] as TCell | undefined;
-                if (!rowCell || rowCell.v !== rowFilter.value) {
+                if (!rowCell) {
+                    throw new Error(
+                        `field '${rowFilter.key}' not found in ${field.path}#${field.sheet}`
+                    );
+                }
+                if (rowCell.v !== rowFilter.value) {
                     return true;
                 }
             }

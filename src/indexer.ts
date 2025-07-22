@@ -1,5 +1,5 @@
 import { keys } from "./util";
-import { assert, checkType, get, isNotNull, TCell, TRow, Type, Workbook } from "./xlsx";
+import { checkType, get, isNotNull, TCell, TRow, Type, Workbook } from "./xlsx";
 
 export type RowFilter = { readonly key: string; readonly value: string | number };
 
@@ -101,7 +101,6 @@ export class RowIndexer<T = TRow> {
                 for (const key of keys(sheet.data)) {
                     const row = checkType<TRow>(sheet.data[key], Type.Row);
                     if (!this.filter || this.filter(row as T)) {
-                        assert(!!row["!key"], "key not found");
                         this._cache[key] = row as T;
                         this._rows.push(row);
                     }

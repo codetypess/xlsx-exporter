@@ -331,7 +331,7 @@ export interface GeneratedTaskMainRow {
      */
     readonly sort: number;
     /**
-     * 任务类型 (location: D1) (checker: #define.value=$&key1=TASK_TYPE)
+     * 任务类型 (location: D1) (checker: #define.value=$&#define.key1=TASK_TYPE)
      */
     readonly type: number;
     /**
@@ -387,7 +387,7 @@ export interface GeneratedTaskMainCol {
      */
     readonly sort: (number)[];
     /**
-     * 任务类型 (location: D1) (checker: #define.value=$&key1=TASK_TYPE)
+     * 任务类型 (location: D1) (checker: #define.value=$&#define.key1=TASK_TYPE)
      */
     readonly type: (number)[];
     /**

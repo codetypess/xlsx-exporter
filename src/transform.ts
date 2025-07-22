@@ -1,4 +1,4 @@
-import { keys, values } from "./util";
+import { values } from "./util";
 import {
     Sheet,
     TArray,
@@ -10,19 +10,13 @@ import {
     assert,
     checkType,
     convertValue,
-    error,
     getRows,
     isNotNull,
-    isNull,
     toString,
 } from "./xlsx";
 
 export const defineSheet = (sheet: Sheet) => {
     checkType(sheet.data, Type.Sheet);
-
-    const ks = keys(sheet.data)
-        .map((k) => Number(k))
-        .filter((v) => !isNaN(v));
 
     const config: TObject = {};
     const enumOptions: TObject[] = [];
@@ -30,11 +24,8 @@ export const defineSheet = (sheet: Sheet) => {
     config["!name"] = sheet.name;
     config["!type"] = Type.Define;
 
-    for (let i = 0; i < ks.length; i++) {
-        const idx = ks[i];
-        assert(idx === i + 1, `Key '${idx}' is not found`);
-
-        const row = checkType<TRow>(sheet.data[idx], Type.Row);
+    const rows = values<TObject>(sheet.data).map((v) => checkType<TRow>(v, Type.Row));
+    for (const row of rows) {
         const value = convertValue(row["value"], row["value_type"].v as string);
 
         if (!row["key1"] && row["key"]) {
@@ -176,19 +167,19 @@ export const mapSheet = (sheet: Sheet, value: string, ...keys: string[]) => {
                 const result: TObject | TArray = isObject ? {} : [];
                 for (const k of keys) {
                     const v = row[k];
-                    if (isNull(v)) {
-                        error(`Key '${k}' is not found at row ${row["!index"]}`);
+                    if (!v) {
+                        throw new Error(`Key '${k}' is not found`);
                     }
                     if (isObject) {
-                        (result as TObject)[k] = v.v;
+                        (result as TObject)[k] = v;
                     } else {
-                        (result as TArray).push(v.v);
+                        (result as TArray).push(v);
                     }
                 }
                 return result;
             };
         } else {
-            error(`Invalid value query: ${value}`);
+            throw new Error(`Invalid value query: ${value}`);
         }
     })();
 
@@ -197,9 +188,9 @@ export const mapSheet = (sheet: Sheet, value: string, ...keys: string[]) => {
     for (const row of rows) {
         let t = result;
         for (let i = 0; i < keys.length; i++) {
-            const key = row[keys[i]]?.v as string;
-            if (isNull(key)) {
-                error(`Key '${keys[i]}' is not found at row ${row["!index"]}`);
+            const key = (row[keys[i]]?.v ?? "") as string;
+            if (key === "") {
+                throw new Error(`Key '${keys[i]}' is not found`);
             }
             if (i === keys.length - 1) {
                 t[key] = queryValue(row);
@@ -221,9 +212,9 @@ export const columnSheet = (sheet: Sheet, idxKey: string, ...foldKeys: string[])
 
     const result: { [key: string]: TObject } = {};
     for (const row of rows) {
-        const idx = row[idxKey]?.v as string;
-        if (isNull(idx)) {
-            error(`Key '${idxKey}' is not found at row ${row["!index"]}`);
+        const idx = (row[idxKey]?.v ?? "") as string;
+        if (idx === "") {
+            throw new Error(`Key '${idxKey}' is not found`);
         }
         let value = result[idx];
         if (!value) {
@@ -251,9 +242,9 @@ export const collapseSheet = (sheet: Sheet, ...keys: string[]) => {
     for (const row of rows) {
         let t = result;
         for (let i = 0; i < keys.length; i++) {
-            const key = row[keys[i]]?.v as string;
-            if (isNull(key)) {
-                error(`Key '${keys[i]}' is not found at row ${row["!index"]}`);
+            const key = (row[keys[i]]?.v ?? "") as string;
+            if (key === "") {
+                throw new Error(`Key '${keys[i]}' is not found`);
             }
 
             if (!t[key]) {

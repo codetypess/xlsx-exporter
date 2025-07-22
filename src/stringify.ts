@@ -1,5 +1,5 @@
 import { escape, isNumericKey, keys } from "./util";
-import { TArray, TCell, TObject, TValue, Type, isNotNull } from "./xlsx";
+import { TArray, TCell, TObject, TValue, Type, checkType, isNotNull } from "./xlsx";
 
 export class StringBuffer {
     readonly data: string[] = [];
@@ -61,7 +61,7 @@ export type StringifyContext = {
     readonly indent: number;
     readonly precision?: number;
     readonly buffer: StringBuffer;
-    readonly writeValue: (value: TValue, padding: boolean) => void;
+    readonly writeValue: (value: TValue) => void;
     readonly writeArray: (value: TArray) => void;
     readonly writeObject: (value: TObject) => void;
 };
@@ -98,12 +98,9 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         writeObject: writeJsonObject,
     };
 
-    function writeJsonValue(value: TValue, padding: boolean) {
-        if (padding) {
-            buffer.padding();
-        }
+    function writeJsonValue(value: TValue) {
         if (typeof value === "number") {
-            buffer.writeString(numberToString(value, option?.precision));
+            buffer.writeString(numberToString(value, ctx.precision));
         } else if (typeof value === "boolean") {
             buffer.writeString(value.toString());
         } else if (value === null || value === undefined) {
@@ -118,8 +115,8 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
             if (value["!type"] === Type.Cell) {
                 value = value.v;
             }
-            if (typeof value !== "object" || value === null) {
-                writeJsonValue(value, false);
+            if (typeof value !== "object" || value === null || value === undefined) {
+                writeJsonValue(value);
             } else if (Array.isArray(value)) {
                 writeJsonArray(value);
             } else {
@@ -139,7 +136,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         }
 
         const ks = keys(value, isNotNull);
-        const space = option!.indent! > 0 ? " " : "";
+        const space = ctx.indent > 0 ? " " : "";
         buffer.writeString("{");
         buffer.linefeed();
         buffer.indent();
@@ -149,7 +146,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
             stacks.push(k);
             buffer.padding();
             buffer.writeString(`"${k}":${space}`);
-            writeJsonValue(v, false);
+            writeJsonValue(v);
             if (i < ks.length - 1) {
                 buffer.writeString(",");
             }
@@ -172,7 +169,8 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         buffer.indent();
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
-            writeJsonValue(v, true);
+            buffer.padding();
+            writeJsonValue(v);
             if (i < value.length - 1) {
                 buffer.writeString(",");
             }
@@ -183,7 +181,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         buffer.writeString("]");
     }
 
-    writeJsonValue(data, true);
+    writeJsonValue(data);
 
     return buffer.toString();
 };
@@ -224,12 +222,9 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         }
     }
 
-    function writeLuaValue(value: TValue, padding: boolean) {
-        if (padding) {
-            buffer.padding();
-        }
+    function writeLuaValue(value: TValue) {
         if (typeof value === "number") {
-            buffer.writeString(numberToString(value, option?.precision));
+            buffer.writeString(numberToString(value, ctx.precision));
         } else if (typeof value === "boolean") {
             buffer.writeString(value.toString());
         } else if (value === null || value === undefined) {
@@ -244,8 +239,8 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
             if (value["!type"] === Type.Cell) {
                 value = value.v;
             }
-            if (typeof value !== "object" || value === null) {
-                writeLuaValue(value, false);
+            if (typeof value !== "object" || value === null || value === undefined) {
+                writeLuaValue(value);
             } else if (Array.isArray(value)) {
                 writeLuaArray(value);
             } else {
@@ -265,7 +260,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         }
 
         const ks = keys(value, isNotNull);
-        const space = option!.indent! > 0 ? " " : "";
+        const space = ctx.indent > 0 ? " " : "";
         buffer.writeString("{");
         buffer.linefeed();
         buffer.indent();
@@ -282,7 +277,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
             } else {
                 buffer.writeString(`["${k}"]${space}=${space}`);
             }
-            writeLuaValue(v, false);
+            writeLuaValue(v);
             buffer.writeString(",");
             buffer.linefeed();
             stacks.pop();
@@ -303,7 +298,8 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         buffer.indent();
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
-            writeLuaValue(v, true);
+            buffer.padding();
+            writeLuaValue(v);
             buffer.writeString(",");
             buffer.linefeed();
         }
@@ -316,7 +312,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         buffer.writeString(option.marshal);
     }
 
-    writeLuaValue(data, true);
+    writeLuaValue(data);
 
     return buffer.toString();
 };
@@ -357,12 +353,9 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         }
     }
 
-    function writeTsValue(value: TValue, padding: boolean) {
-        if (padding) {
-            buffer.padding();
-        }
+    function writeTsValue(value: TValue) {
         if (typeof value === "number") {
-            buffer.writeString(numberToString(value, option?.precision));
+            buffer.writeString(numberToString(value, ctx.precision));
         } else if (typeof value === "boolean") {
             buffer.writeString(value.toString());
         } else if (value === null || value === undefined) {
@@ -381,7 +374,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             enumBuffer.writeLine(`export enum ${enumName} {`);
             enumBuffer.indent();
             for (const k of ks) {
-                const v = (value as TObject)[k] as TCell;
+                const v = checkType<TCell>((value as TObject)[k], Type.Cell);
                 const valueComment = v["!comment"];
                 writeTsComment(valueComment, enumBuffer);
                 if (typeof v.v === "number") {
@@ -398,8 +391,8 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             if (value["!type"] === Type.Cell) {
                 value = value.v;
             }
-            if (typeof value !== "object" || value === null) {
-                writeTsValue(value, false);
+            if (typeof value !== "object" || value === null || value === undefined) {
+                writeTsValue(value);
             } else if (Array.isArray(value)) {
                 writeTsArray(value);
             } else {
@@ -419,7 +412,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         }
 
         const ks = keys(value, isNotNull);
-        const space = option!.indent! > 0 ? " " : "";
+        const space = ctx.indent > 0 ? " " : "";
         buffer.writeString("{");
         buffer.linefeed();
         buffer.indent();
@@ -436,7 +429,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             } else {
                 buffer.writeString(`"${k}":${space}`);
             }
-            writeTsValue(v, false);
+            writeTsValue(v);
             buffer.writeString(",");
             buffer.linefeed();
             stacks.pop();
@@ -457,7 +450,8 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         buffer.indent();
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
-            writeTsValue(v, true);
+            buffer.padding();
+            writeTsValue(v);
             buffer.writeString(",");
             buffer.linefeed();
         }
@@ -470,7 +464,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         buffer.writeString(option.marshal);
     }
 
-    writeTsValue(data, true);
+    writeTsValue(data);
 
     const enumString = enumBuffer.toString();
     if (enumString) {

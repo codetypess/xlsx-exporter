@@ -72,7 +72,7 @@ Excel 文件需要按照特定格式组织：
     <td>[0,1,2]</td>
     <td>item#item.id</td>
     <td>task#*.id</td>
-    <td>id==reward#*.id<br />@CheckReward</td>
+    <td>reward#*.id=$.id<br />@CheckReward</td>
     <td>#level.id</td>
   </tr>
   <tr>
@@ -220,7 +220,7 @@ xlsx.parse(["data/item.xlsx", "data/task.xlsx"]);
   当前列的值必须在 `battle_skill` 表的任意分页中的 `id` 字段中找到
 - battle/battle_skill#skill.id=id
   当前列的子字段 `id` 值必须在 `battle_skill` 表的 `skill` 分页中的 `id` 字段中找到
-- value >= 1 && value <= 9
+- \$ >= 1 && \$ <= 9
   表达式检查，示例在 recharge.xlsx 的 discount 字段
 - [1,2,3,4]
   检查值在不在这个数组内

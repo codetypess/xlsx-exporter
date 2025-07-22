@@ -33,12 +33,8 @@ export type Tag = {
     ["!writer"]?: string[];
     /** field */
     ["!field"]?: Field;
-    /** row index */
-    ["!index"]?: number;
     /** row data */
     ["!row"]?: TRow;
-    /** row key */
-    ["!key"]?: TCell;
 };
 
 export type TCell = {
@@ -553,7 +549,6 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
         loop: for (let r = start; r < sheetData.length; r++) {
             const row: TObject = {};
             row["!type"] = Type.Row;
-            row["!index"] = r + 1;
             for (const field of sheet.fields) {
                 const cell: TCell = readCell(sheetData, r, field.index);
                 if (field.index === 0 && cell.v === "") {
@@ -567,7 +562,6 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
                 cell["!writer"] = field.writers;
                 row[field.name] = cell;
                 if (field.index === 0) {
-                    row["!key"] = cell;
                     sheet.data[cell.v as string] = row;
                 }
             }
@@ -592,7 +586,8 @@ const parseBody = () => {
                 }
                 if (remap) {
                     delete sheet.data[key];
-                    sheet.data[row["!key"]!.v as string] = row;
+                    const newKey = row[sheet.fields[0].name].v as string;
+                    sheet.data[newKey] = row;
                 }
             }
         }
@@ -682,7 +677,11 @@ const applyProcessor = () => {
         arr.sort((a, b) => a.processor.priority - b.processor.priority);
         for (const { processor, sheet, args, name } of arr) {
             using _ = doing(`Applying processor '${name}' in '${file}#${sheet.name}'`);
-            processor.exec(workbook, sheet, ...args);
+            try {
+                processor.exec(workbook, sheet, ...args);
+            } catch (e) {
+                error((e as Error).stack ?? String(e));
+            }
         }
     }
 };

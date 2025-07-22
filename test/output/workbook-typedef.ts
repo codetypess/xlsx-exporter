@@ -339,7 +339,7 @@ export interface TaskMain {
      */
     sort: { v:number };
     /**
-     * 任务类型 (location: D1) (checker: #define.value=$&key1=TASK_TYPE) (writer: client|server)
+     * 任务类型 (location: D1) (checker: #define.value=$&#define.key1=TASK_TYPE) (writer: client|server)
      */
     type: { v:number };
     /**
