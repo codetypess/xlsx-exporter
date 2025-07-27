@@ -35,6 +35,8 @@ export type Tag = {
     ["!field"]?: Field;
     /** row data */
     ["!row"]?: TRow;
+    /** ignore fields when stringify */
+    ["!ignore"]?: { [k: string]: boolean };
 };
 
 export type TCell = {

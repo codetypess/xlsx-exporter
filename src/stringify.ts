@@ -135,7 +135,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
             return;
         }
 
-        const ks = keys(value, isNotNull);
+        const ks = keys(value, isNotNull, value["!ignore"]);
         const space = ctx.indent > 0 ? " " : "";
         buffer.writeString("{");
         buffer.linefeed();
@@ -259,7 +259,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
             return;
         }
 
-        const ks = keys(value, isNotNull);
+        const ks = keys(value, isNotNull, value["!ignore"]);
         const space = ctx.indent > 0 ? " " : "";
         buffer.writeString("{");
         buffer.linefeed();
@@ -411,7 +411,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             return;
         }
 
-        const ks = keys(value, isNotNull);
+        const ks = keys(value, isNotNull, value["!ignore"]);
         const space = ctx.indent > 0 ? " " : "";
         buffer.writeString("{");
         buffer.linefeed();

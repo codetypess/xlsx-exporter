@@ -64,10 +64,14 @@ export const format = (str: string, vars: Record<string, string>) => {
     return lines.join("\n");
 };
 
-export const keys = (o: object, filter?: (v: TValue) => boolean) => {
+export const keys = (
+    o: object,
+    filter?: (v: TValue) => boolean,
+    ignore?: { [k: string]: boolean }
+) => {
     const value = o as TObject;
     const ks = Object.keys(value).filter(
-        (k) => !k.startsWith("!") && (!filter || filter(value[k]))
+        (k) => !k.startsWith("!") && (!ignore || !ignore[k]) && (!filter || filter(value[k]))
     );
 
     if (value["!enum"]) {
@@ -96,8 +100,12 @@ export const keys = (o: object, filter?: (v: TValue) => boolean) => {
     }
 };
 
-export const values = <T>(o: TObject, filter?: (v: TValue) => boolean): T[] => {
-    return keys(o, filter).map((k) => o[k] as T);
+export const values = <T>(
+    o: TObject,
+    filter?: (v: TValue) => boolean,
+    ignore?: { [k: string]: boolean }
+): T[] => {
+    return keys(o, filter, ignore).map((k) => o[k] as T);
 };
 
 export const toPascalCase = (str: string): string => {
