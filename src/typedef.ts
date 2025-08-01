@@ -1,77 +1,81 @@
 import { StringBuffer } from "./stringify";
-import { filename, toPascalCase } from "./util";
-import { convertors, files, get } from "./xlsx";
+import { filename, keys, toPascalCase } from "./util";
+import {
+    convertors,
+    files,
+    getWorkbook,
+    makeTypeName,
+    Type,
+    TypeDecl,
+    TypeName,
+    TypeStruct,
+} from "./xlsx";
 
 type ClassNameMaker = (className: string) => string;
 
+const writeTsType = (field: string, typealias: TypeDecl, buffer: StringBuffer) => {
+    if (typealias["!type"] === Type.TypeName) {
+        const type = typealias as TypeName;
+        const optional = type["!optional"] ? "?" : "";
+        const array = type["!array"] ?? "";
+        let realtype = type.value;
+        realtype = convertors[realtype].realtype ?? realtype;
+        if (type["!comment"]) {
+            buffer.writeLine(`/**`);
+            buffer.writeLine(` * ${type["!comment"]}`);
+            buffer.writeLine(` */`);
+        }
+        if (realtype === "int" || realtype === "float") {
+            buffer.writeLine(`readonly ${field}${optional}: number${array};`);
+        } else if (realtype === "string") {
+            buffer.writeLine(`readonly ${field}${optional}: string${array};`);
+        } else if (realtype === "bool") {
+            buffer.writeLine(`readonly ${field}${optional}: boolean${array};`);
+        } else {
+            buffer.writeLine(`readonly ${field}${optional}: unknown${array};`);
+        }
+    } else {
+        const optional = field.endsWith("?") ? "?" : "";
+        const array = field.endsWith("[]") ? "[]" : "";
+        const struct = typealias as TypeStruct;
+        buffer.writeLine(`readonly ${field}${optional}: {`);
+        buffer.indent();
+        for (const k of keys(struct)) {
+            writeTsType(k, struct[k], buffer);
+        }
+        buffer.unindent();
+        buffer.writeLine(`}${array};`);
+    }
+};
 export const genTsTypedef = (path: string, writer: string, maker?: ClassNameMaker) => {
-    const workbook = get(path);
+    const workbook = getWorkbook(path);
     const buffer = new StringBuffer(4);
     const name = filename(path);
     maker = maker ?? ((className) => className);
-    for (const k of Object.keys(workbook.sheets).sort()) {
-        const sheet = workbook.sheets[k];
-        const className = maker(toPascalCase(`Generated_${name}_${sheet.name}_Row`));
+    const typedefs = workbook.typedefs[writer];
+    for (const sheetName of Object.keys(typedefs).sort()) {
+        const className = maker(toPascalCase(`Generated_${name}_${sheetName}_Row`));
 
         // row
         buffer.writeLine(`// file: ${path}`);
         buffer.writeLine(`export interface ${className} {`);
         buffer.indent();
-        for (const field of sheet.fields) {
-            if (!field.writers.includes(writer)) {
-                continue;
-            }
+        for (const field of typedefs[sheetName]) {
             const checker = field.checker.map((v) => v.def).join(";");
-            const optional = field.typename.endsWith("?") ? "?" : "";
             const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
-            let typename = field.typename.replaceAll("?", "");
-            typename = convertors[typename].realtype ?? typename;
             buffer.writeLine(`/**`);
             buffer.writeLine(
                 ` * ${comment} (location: ${field.refer}) (checker: ${checker || "x"})`
             );
             buffer.writeLine(` */`);
-            if (typename === "int" || typename === "float") {
-                buffer.writeLine(`readonly ${field.name}${optional}: number;`);
-            } else if (typename === "string") {
-                buffer.writeLine(`readonly ${field.name}${optional}: string;`);
-            } else if (typename === "bool") {
-                buffer.writeLine(`readonly ${field.name}${optional}: boolean;`);
-            } else {
-                buffer.writeLine(`readonly ${field.name}${optional}: unknown;`);
-            }
-        }
-        buffer.unindent();
-        buffer.writeLine(`}`);
-        buffer.writeLine("");
-
-        // col
-        buffer.writeLine(`// file: ${path}`);
-        buffer.writeLine(`export interface ${className.replace("Row", "Col")} {`);
-        buffer.indent();
-        for (const field of sheet.fields) {
-            if (!field.writers.includes(writer)) {
-                continue;
-            }
-            const checker = field.checker.map((v) => v.def).join(";");
-            const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
-            const optional = field.typename.endsWith("?") ? " | undefined" : "";
-            let typename = field.typename.replaceAll("?", "");
-            typename = convertors[typename].realtype ?? typename;
-            buffer.writeLine(`/**`);
-            buffer.writeLine(
-                ` * ${comment} (location: ${field.refer}) (checker: ${checker || "x"})`
+            writeTsType(
+                field.name,
+                field.typedecl ??
+                    makeTypeName(field.typename.replaceAll("?", ""), {
+                        "!optional": field.typename.includes("?"),
+                    }),
+                buffer
             );
-            buffer.writeLine(` */`);
-            if (typename === "int" || typename === "float") {
-                buffer.writeLine(`readonly ${field.name}: (number${optional})[];`);
-            } else if (typename === "string") {
-                buffer.writeLine(`readonly ${field.name}: (string${optional})[];`);
-            } else if (typename === "bool") {
-                buffer.writeLine(`readonly ${field.name}: (boolean${optional})[];`);
-            } else {
-                buffer.writeLine(`readonly ${field.name}: (unknown${optional})[];`);
-            }
         }
         buffer.unindent();
         buffer.writeLine(`}`);
@@ -85,18 +89,16 @@ export const genLuaTypedef = (path: string, writer: string, maker?: ClassNameMak
         maker = (className) => `xlsx.${writer}.${className}`;
     }
     const buffer = new StringBuffer(4);
-    const workbook = get(path);
+    const workbook = getWorkbook(path);
     const name = filename(path);
-    for (const sheet of Object.values(workbook.sheets)) {
-        const className = maker(toPascalCase(`${name}_${sheet.name}`));
+    const typedefs = workbook.typedefs[writer];
+    for (const sheetName of Object.keys(typedefs).sort()) {
+        const className = maker(toPascalCase(`${name}_${sheetName}`));
         buffer.writeLine(`---file: ${path}`);
         buffer.writeLine(`---@class ${className}`);
-        for (const field of sheet.fields) {
-            if (!field.writers.includes(writer)) {
-                continue;
-            }
+        for (const field of typedefs[sheetName]) {
             const optional = field.typename.endsWith("?") ? "?" : "";
-            let typename = field.typename.replaceAll("?", "");
+            let typename = field.typename.replaceAll("?", "").replaceAll("[]", "");
             typename = convertors[typename].realtype ?? typename;
             const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
             if (typename === "int") {
@@ -122,7 +124,7 @@ export const genWorkbookTypedef = () => {
     const buffer = new StringBuffer(4);
     buffer.writeLine(`// AUTO GENERATED, DO NOT MODIFY!\n`);
     for (const path of Object.keys(files).sort()) {
-        const workbook = get(path);
+        const workbook = getWorkbook(path);
         const name = filename(path);
         for (const k of Object.keys(workbook.sheets).sort()) {
             const sheet = workbook.sheets[k];

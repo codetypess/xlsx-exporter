@@ -12,6 +12,7 @@ import {
     convertValue,
     getRows,
     isNotNull,
+    makeTypeName,
     toString,
 } from "./xlsx";
 
@@ -236,6 +237,16 @@ export const columnSheet = (sheet: Sheet, idxKey: string, ...foldKeys: string[])
             }
         }
     }
+
+    for (const field of sheet.fields) {
+        if (foldKeys.includes(field.name)) {
+            field.typedecl = makeTypeName(field.typename.replaceAll("?", ""), {
+                "!optional": false,
+                "!array": "[]",
+            });
+        }
+    }
+
     return result;
 };
 

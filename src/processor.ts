@@ -71,6 +71,10 @@ export const StringifyProcessor: Processor = (
         const filtered = copyOf(workbook, k);
         const writer = writers[k];
         writer(filtered.path, rule(filtered, k), "stringify");
+        workbook.typedefs[k] = {};
+        for (const sheetName in filtered.sheets) {
+            workbook.typedefs[k][sheetName] = filtered.sheets[sheetName].fields;
+        }
     }
 };
 

@@ -16,6 +16,8 @@ export const enum Type {
     Map = "xlsx.type.map",
     Fold = "xlsx.type.fold",
     Sheet = "xlsx.type.sheet",
+    TypeName = "xlsx.type.type_name",
+    TypeStruct = "xlsx.type.type_struct",
 }
 
 export type Tag = {
@@ -55,12 +57,23 @@ export type TObject = { [k: string | number]: TValue } & Tag;
 export type TArray = TValue[] & Tag;
 export type TRow = { [k: string]: TCell } & Tag;
 
+type TypeTag = {
+    "!type": Type.TypeName | Type.TypeStruct;
+    "!array"?: "[]" | "[][]" | "[][][]" | "[][][][]";
+    "!comment"?: string;
+    "!optional"?: boolean;
+};
+export type TypeName = { value: string } & TypeTag;
+export type TypeStruct = { [k: string]: TypeDecl } & TypeTag;
+export type TypeDecl = TypeStruct | TypeName;
+
 export type Field = {
     sheet: string;
     path: string;
     index: number;
     name: string;
     typename: string;
+    typedecl?: TypeDecl;
     writers: string[];
     checker: CheckerType[];
     comment: string;
@@ -77,6 +90,8 @@ export type Sheet = {
 export type Workbook = {
     path: string;
     sheets: Record<string, Sheet>;
+    /**  writer -> sheet -> field */
+    typedefs: Record<string, Record<string, Field[]>>;
 };
 
 export type Convertor = (str: string) => TValue;
@@ -447,6 +462,26 @@ export const makeCell = (v: TValue, t?: string, r?: string, s?: string) => {
     return { "!type": Type.Cell, v: v ?? null, t, r, s } as TCell;
 };
 
+export const makeTypeName = (name: string, tag?: Partial<TypeTag>) => {
+    assert(!name.includes("?") && !name.includes("[]"), `Invalid type name: '${name}'`);
+    return {
+        ...tag,
+        "!type": Type.TypeName,
+        value: name.replaceAll("[]", "").replaceAll("?", ""),
+    } as TypeName;
+};
+
+export const makeTypeStruct = (
+    struct: { [k: string]: TypeDecl | TypeName },
+    tag?: Partial<TypeTag>
+) => {
+    return {
+        ...struct,
+        ...tag,
+        "!type": Type.TypeStruct,
+    } as TypeStruct;
+};
+
 const readHeader = (path: string, data: xlsx.WorkBook) => {
     const requiredProcessors = Object.values(processors)
         .filter((p) => p.option.required)
@@ -460,6 +495,7 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
     const workbook: Workbook = {
         path: path,
         sheets: {},
+        typedefs: {},
     };
     files[path] = workbook;
     const writerKeys = Object.keys(writers);
@@ -800,7 +836,9 @@ export const copyOf = (workbook: Workbook, writer: string, headerOnly: boolean =
                 }
             }
         }
-        resultSheet.fields = sheet.fields.filter((f) => f.writers.includes(writer));
+        resultSheet.fields = sheet.fields
+            .filter((f) => f.writers.includes(writer))
+            .map((v) => ({ ...v }));
     }
     return result;
 };
@@ -811,7 +849,7 @@ export const copyOf = (workbook: Workbook, writer: string, headerOnly: boolean =
  * @returns The workbook.
  * @throws An error if the workbook is not found.
  */
-export const get = (path: string) => {
+export const getWorkbook = (path: string) => {
     const found = Object.keys(files).filter((file) => file.endsWith(path));
     if (found.length === 0) {
         error(`File not found: ${path}`);
@@ -822,7 +860,7 @@ export const get = (path: string) => {
 };
 
 export const getRows = <T = TRow>(path: string, sheet: string) => {
-    const workbook = get(path);
+    const workbook = getWorkbook(path);
     const sheetData = workbook.sheets[sheet]?.data;
     if (!sheetData) {
         throw new Error(`Sheet not found: ${path}#${sheet}`);

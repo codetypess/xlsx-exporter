@@ -1,5 +1,5 @@
 import { keys } from "./util";
-import { checkType, get, isNotNull, TCell, TRow, Type, Workbook } from "./xlsx";
+import { checkType, getWorkbook, isNotNull, TCell, TRow, Type, Workbook } from "./xlsx";
 
 /** string '2' and number 2 are considered the same */
 const isSame = (a: unknown, b: unknown) => {
@@ -31,7 +31,7 @@ export class ColumnIndexer<T = TRow> {
         if (this._workbook) {
             return;
         }
-        this._workbook = get(this.path);
+        this._workbook = getWorkbook(this.path);
         for (const sheet of Object.values(this._workbook.sheets)) {
             if (sheet.name === this.sheetName || this.sheetName === "*") {
                 if (!sheet.fields.find((f) => f.name === this.field)) {
@@ -106,7 +106,7 @@ export class RowIndexer<T = TRow> {
         if (this._workbook) {
             return;
         }
-        this._workbook = get(this.path);
+        this._workbook = getWorkbook(this.path);
         for (const sheet of Object.values(this._workbook.sheets)) {
             if (sheet.name === this.sheetName || this.sheetName === "*") {
                 for (const key of keys(sheet.data)) {

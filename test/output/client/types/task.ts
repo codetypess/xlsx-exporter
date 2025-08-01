@@ -61,66 +61,6 @@ export interface GeneratedTaskBranchRow {
 }
 
 // file: test/res/task.xlsx
-export interface GeneratedTaskBranchCol {
-    /**
-     * ### (location: A1) (checker: x)
-     */
-    readonly id: (number)[];
-    /**
-     * 任务组 (location: C1) (checker: x)
-     */
-    readonly group: (number)[];
-    /**
-     * 显示排序 (location: D1) (checker: x)
-     */
-    readonly sort: (number)[];
-    /**
-     * 任务类型 (location: E1) (checker: x)
-     */
-    readonly type: (number)[];
-    /**
-     * 名字 (location: F1) (checker: x)
-     */
-    readonly name: (string)[];
-    /**
-     * 描述 (location: G1) (checker: x)
-     */
-    readonly desc: (string)[];
-    /**
-     * 后置任务 (location: H1) (checker: #branch.id)
-     */
-    readonly next_task: (number | undefined)[];
-    /**
-     * 条件 (location: I1) (checker: x)
-     */
-    readonly condition: (string)[];
-    /**
-     * 累计 (location: J1) (checker: x)
-     */
-    readonly total: (boolean | undefined)[];
-    /**
-     * 参数 (location: K1) (checker: x)
-     */
-    readonly args: (unknown)[];
-    /**
-     * 奖励 (location: L1) (checker: $[*].id==item#item.id)
-     */
-    readonly reward: (unknown)[];
-    /**
-     * 任务icon (location: M1) (checker: x)
-     */
-    readonly icon: (string)[];
-    /**
-     *  (location: N1) (checker: x)
-     */
-    readonly custom: (string | undefined)[];
-    /**
-     * 完成后自动提交 (location: O1) (checker: x)
-     */
-    readonly auto_submit: (number | undefined)[];
-}
-
-// file: test/res/task.xlsx
 export interface GeneratedTaskConfRow {
     /**
      * ### (location: A2) (checker: x)
@@ -142,30 +82,6 @@ export interface GeneratedTaskConfRow {
      * 描述 (location: E2) (checker: x)
      */
     readonly value_comment: string;
-}
-
-// file: test/res/task.xlsx
-export interface GeneratedTaskConfCol {
-    /**
-     * ### (location: A2) (checker: x)
-     */
-    readonly id: (number)[];
-    /**
-     * 键 (location: B2) (checker: x)
-     */
-    readonly key: (string)[];
-    /**
-     * 值 (location: C2) (checker: x)
-     */
-    readonly value: (string)[];
-    /**
-     * 值类型 (location: D2) (checker: x)
-     */
-    readonly value_type: (string)[];
-    /**
-     * 描述 (location: E2) (checker: x)
-     */
-    readonly value_comment: (string)[];
 }
 
 // file: test/res/task.xlsx
@@ -198,38 +114,6 @@ export interface GeneratedTaskEventsRow {
      * 任务icon (location: J1) (checker: x)
      */
     readonly icon: string;
-}
-
-// file: test/res/task.xlsx
-export interface GeneratedTaskEventsCol {
-    /**
-     * ### (location: A1) (checker: x)
-     */
-    readonly id: (number)[];
-    /**
-     * 显示排序 (location: C1) (checker: x)
-     */
-    readonly sort: (number)[];
-    /**
-     * 任务类型 (location: D1) (checker: x)
-     */
-    readonly type: (number)[];
-    /**
-     * 描述 (location: E1) (checker: x)
-     */
-    readonly desc: (string)[];
-    /**
-     * 奖励 (location: H1) (checker: $[*].id==item#item.id)
-     */
-    readonly reward: (unknown)[];
-    /**
-     * vip奖励 (location: I1) (checker: $[*].id==item#*.id)
-     */
-    readonly vip_reward: (unknown)[];
-    /**
-     * 任务icon (location: J1) (checker: x)
-     */
-    readonly icon: (string)[];
 }
 
 // file: test/res/task.xlsx
@@ -274,50 +158,6 @@ export interface GeneratedTaskExchangeRow {
      * 任务npc和对话 (location: L1) (checker: x)
      */
     readonly custom?: unknown;
-}
-
-// file: test/res/task.xlsx
-export interface GeneratedTaskExchangeCol {
-    /**
-     * ### (location: A1) (checker: x)
-     */
-    readonly id: (number)[];
-    /**
-     * 显示排序 (location: C1) (checker: x)
-     */
-    readonly sort: (number)[];
-    /**
-     * 任务类型 (location: D1) (checker: x)
-     */
-    readonly type: (number)[];
-    /**
-     * 描述 (location: E1) (checker: x)
-     */
-    readonly desc: (string)[];
-    /**
-     * 后置任务 (location: F1) (checker: task#*.id)
-     */
-    readonly next_task: (number | undefined)[];
-    /**
-     * 累计 (location: H1) (checker: x)
-     */
-    readonly total: (boolean | undefined)[];
-    /**
-     * 参数 (location: I1) (checker: x)
-     */
-    readonly args: (unknown)[];
-    /**
-     * 奖励 (location: J1) (checker: @ItemArrayChecker)
-     */
-    readonly reward: (unknown)[];
-    /**
-     * 任务icon (location: K1) (checker: x)
-     */
-    readonly icon: (string)[];
-    /**
-     * 任务npc和对话 (location: L1) (checker: x)
-     */
-    readonly custom: (unknown | undefined)[];
 }
 
 // file: test/res/task.xlsx
@@ -377,62 +217,6 @@ export interface GeneratedTaskMainRow {
 }
 
 // file: test/res/task.xlsx
-export interface GeneratedTaskMainCol {
-    /**
-     * ### (location: A1) (checker: x)
-     */
-    readonly id: (number)[];
-    /**
-     * 显示排序 (location: C1) (checker: $ > 0 && $ < 20)
-     */
-    readonly sort: (number)[];
-    /**
-     * 任务类型 (location: D1) (checker: #define.value&key1=TASK_TYPE)
-     */
-    readonly type: (number)[];
-    /**
-     * 描述 (location: E1) (checker: x)
-     */
-    readonly desc: (string)[];
-    /**
-     * 后置任务 (location: F1) (checker: task#*.id)
-     */
-    readonly next_task: (number | undefined)[];
-    /**
-     * 支线任务 (location: G1) (checker: $[*]==#branch.id)
-     */
-    readonly branch_tasks: (unknown | undefined)[];
-    /**
-     * 条件 (location: H1) (checker: x)
-     */
-    readonly condition: (string)[];
-    /**
-     * 累计 (location: I1) (checker: x)
-     */
-    readonly total: (boolean | undefined)[];
-    /**
-     * 参数 (location: J1) (checker: @TaskArgsChecker)
-     */
-    readonly args: (unknown)[];
-    /**
-     * 奖励 (location: K1) (checker: @ItemArrayChecker)
-     */
-    readonly reward: (unknown)[];
-    /**
-     * 任务icon (location: L1) (checker: x)
-     */
-    readonly icon: (string)[];
-    /**
-     *  (location: M1) (checker: x)
-     */
-    readonly custom: (unknown | undefined)[];
-    /**
-     * 完成后自动提交 (location: N1) (checker: [1])
-     */
-    readonly auto_submit: (number | undefined)[];
-}
-
-// file: test/res/task.xlsx
 export interface GeneratedTaskWeeklyRow {
     /**
      * ### (location: A1) (checker: x)
@@ -458,33 +242,5 @@ export interface GeneratedTaskWeeklyRow {
      * 任务icon (location: I1) (checker: x)
      */
     readonly icon: string;
-}
-
-// file: test/res/task.xlsx
-export interface GeneratedTaskWeeklyCol {
-    /**
-     * ### (location: A1) (checker: x)
-     */
-    readonly id: (number)[];
-    /**
-     * 显示排序 (location: C1) (checker: x)
-     */
-    readonly sort: (number)[];
-    /**
-     * 任务类型 (location: D1) (checker: x)
-     */
-    readonly type: (number)[];
-    /**
-     * 描述 (location: E1) (checker: x)
-     */
-    readonly desc: (string)[];
-    /**
-     * 奖励 (location: H1) (checker: @ItemArrayChecker)
-     */
-    readonly reward: (unknown)[];
-    /**
-     * 任务icon (location: I1) (checker: x)
-     */
-    readonly icon: (string)[];
 }
 

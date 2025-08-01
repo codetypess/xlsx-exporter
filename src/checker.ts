@@ -1,6 +1,6 @@
 import { ColumnIndexer, RowFilter } from "./indexer";
 import { keys } from "./util";
-import { CheckerParser, get, TCell, TObject, TValue } from "./xlsx";
+import { CheckerParser, getWorkbook, TCell, TObject, TValue } from "./xlsx";
 
 export const SizeCheckerParser: CheckerParser = (arg) => {
     const length = Number(arg);
@@ -199,7 +199,7 @@ export const IndexCheckerParser: CheckerParser = (
 export const SheetCheckerParser: CheckerParser = (file) => {
     return (cell, row, field, errors) => {
         const path = file.replace(/\.xlsx$/, "") + ".xlsx";
-        const workbook = get(path);
+        const workbook = getWorkbook(path);
         const sheet = workbook.sheets[cell.v as string];
         return sheet !== undefined;
     };
