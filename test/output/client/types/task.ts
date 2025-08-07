@@ -244,3 +244,14 @@ export interface GeneratedTaskWeeklyRow {
     readonly icon: string;
 }
 
+/**
+ * path: test/res/task.xlsx
+ */
+export interface GeneratedTaskTable {
+    readonly branch: { [key: number | string]: GeneratedTaskBranchRow };
+    readonly conf: { [key: number | string]: GeneratedTaskConfRow };
+    readonly events: { [key: number | string]: GeneratedTaskEventsRow };
+    readonly exchange: { [key: number | string]: GeneratedTaskExchangeRow };
+    readonly main: { [key: number | string]: GeneratedTaskMainRow };
+    readonly weekly: { [key: number | string]: GeneratedTaskWeeklyRow };
+}

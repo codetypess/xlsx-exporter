@@ -67,7 +67,7 @@ xlsx.registerWriter("server", (path, data, processor) => {
     }
 });
 
-xlsx.parse(["test/res/item.xlsx", "test/res/task.xlsx"]);
+await xlsx.parse(["test/res/item.xlsx", "test/res/task.xlsx"]);
 
 xlsx.writeFile("test/output/workbook-typedef.ts", xlsx.genWorkbookTypedef());
 

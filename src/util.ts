@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import { basename, dirname, extname } from "node:path";
+import { JsonStringifyOption, stringifyJson } from "./stringify";
 import type { TCell, TObject, TValue } from "./xlsx";
 
 export const isNumericKey = (key: string) => {
@@ -133,6 +134,13 @@ export const writeFile = (path: string, data: string) => {
         console.log(`write: ${path}`);
         fs.writeFileSync(path, data, { encoding: "utf-8" });
     }
+};
+
+export const writeJson = (path: string, data: TValue, options?: JsonStringifyOption) => {
+    options = options ?? {};
+    options.indent = options.indent ?? 2;
+    options.precision = options.precision ?? 10;
+    writeFile(path, stringifyJson(data, options));
 };
 
 export const filename = (path: string, suffix: boolean = false) => {

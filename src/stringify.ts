@@ -77,7 +77,7 @@ const numberToString = (value: number, precision?: number) => {
 //-----------------------------------------------------------------------------
 // Json
 //-----------------------------------------------------------------------------
-type JsonStringifyOption = {
+export type JsonStringifyOption = {
     indent?: number;
     precision?: number;
 };

@@ -79,6 +79,20 @@ export const genTsTypedef = (path: string, writer: string, maker?: ClassNameMake
         buffer.writeLine(`}`);
         buffer.writeLine("");
     }
+
+    buffer.writeLine(`/**`);
+    buffer.writeLine(` * path: ${path}`);
+    buffer.writeLine(` */`);
+    const tableName = maker(toPascalCase(`Generated_${name}_Table`));
+    buffer.writeLine(`export interface ${tableName} {`);
+    buffer.indent();
+    for (const sheet of sheets) {
+        const className = maker(toPascalCase(`Generated_${name}_${sheet.name}_Row`));
+        buffer.writeLine(`readonly ${sheet.name}: { [key: number | string]: ${className} };`);
+    }
+    buffer.unindent();
+    buffer.writeLine(`}`);
+
     return buffer.toString();
 };
 

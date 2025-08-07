@@ -108,7 +108,7 @@ type CheckerType = {
     exec: Checker;
 };
 
-export type Processor = (workbook: Workbook, sheet: Sheet, ...args: string[]) => void;
+export type Processor = (workbook: Workbook, sheet: Sheet, ...args: string[]) => Promise<void>;
 type ProcessorType = {
     name: string;
     option: ProcessorOption;
@@ -554,9 +554,10 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
                 const arr = writer
                     .split("|")
                     .map((w) => w.trim())
+                    .filter((w) => c > 0 || !w.startsWith(">>"))
                     .filter((w) => w)
                     .map((w) => {
-                        if (!writerKeys.includes(w) && c > 0) {
+                        if (!writerKeys.includes(w)) {
                             error(`Writer not found: '${w}' at ${toRef(c, r + 2)}`);
                         }
                         return w;
@@ -571,7 +572,7 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
                     index: c,
                     name,
                     typename,
-                    writers: c > 0 && arr.length ? arr : writerKeys.slice(),
+                    writers: arr.length ? arr : writerKeys.slice(),
                     checker: parseChecker(path, parsed[name], c, checker),
                     comment,
                     refer: toRef(c, r),
@@ -677,6 +678,7 @@ const parseBody = () => {
             }
         }
     }
+    console.log("copying workbook");
     for (const writer in writers) {
         workbooks[writer] = {};
         for (const workbook of Object.values(workbooks[DEFAULT_WRITER])) {
@@ -746,7 +748,7 @@ const applyChecker = () => {
     currentWriter = DEFAULT_WRITER;
 };
 
-const applyProcessor = (stage: ProcessorOption["stage"], writer?: string) => {
+const applyProcessor = async (stage: ProcessorOption["stage"], writer?: string) => {
     type ProcessorEntry = {
         processor: ProcessorType;
         sheet: Sheet;
@@ -777,7 +779,7 @@ const applyProcessor = (stage: ProcessorOption["stage"], writer?: string) => {
             for (const { processor, sheet, args, name } of arr) {
                 using _ = doing(`Applying processor '${name}' in '${workbook.path}#${sheet.name}'`);
                 try {
-                    processor.exec(workbook, sheet, ...args);
+                    await processor.exec(workbook, sheet, ...args);
                 } catch (e) {
                     error((e as Error).stack ?? String(e));
                 }
@@ -787,7 +789,7 @@ const applyProcessor = (stage: ProcessorOption["stage"], writer?: string) => {
     currentWriter = DEFAULT_WRITER;
 };
 
-export const parse = (fs: string[], headerOnly: boolean = false) => {
+export const parse = async (fs: string[], headerOnly: boolean = false) => {
     for (const file of fs) {
         console.log(`reading: '${file}'`);
         const data = xlsx.readFile(file, {
@@ -803,16 +805,16 @@ export const parse = (fs: string[], headerOnly: boolean = false) => {
             readBody(file, data);
         }
     }
-    applyProcessor("after-read", DEFAULT_WRITER);
+    await applyProcessor("after-read", DEFAULT_WRITER);
     if (!headerOnly) {
-        applyProcessor("pre-parse", DEFAULT_WRITER);
+        await applyProcessor("pre-parse", DEFAULT_WRITER);
         parseBody();
-        applyProcessor("after-parse");
-        applyProcessor("pre-check");
+        await applyProcessor("after-parse");
+        await applyProcessor("pre-check");
         resolveChecker();
         applyChecker();
-        applyProcessor("after-check");
-        applyProcessor("default");
+        await applyProcessor("after-check");
+        await applyProcessor("default");
     }
 };
 
@@ -840,21 +842,23 @@ export const copyOf = (workbook: Workbook, writer: string, headerOnly: boolean =
 
     for (const sheetName in workbook.sheets) {
         const sheet = workbook.sheets[sheetName];
-        const resultSheet: Sheet = {
-            name: sheet.name,
-            processors: structuredClone(sheet.processors),
-            fields: structuredClone(sheet.fields).filter((f) => f.writers.includes(writer)),
-            data: {},
-        };
-        result.sheets[sheetName] = resultSheet;
-        if (!headerOnly) {
-            resultSheet.data = copy(sheet.data);
-            if (sheet.data["!type"] === Type.Sheet) {
-                for (const key of keys(sheet.data)) {
-                    const row = checkType<TRow>(sheet.data[key], Type.Row);
-                    for (const k in row) {
-                        if (!k.startsWith("!") && typeof row[k] === "object") {
-                            row[k]["!row"] = row;
+        if (sheet.fields[0].writers.includes(writer)) {
+            const resultSheet: Sheet = {
+                name: sheet.name,
+                processors: structuredClone(sheet.processors),
+                fields: structuredClone(sheet.fields).filter((f) => f.writers.includes(writer)),
+                data: {},
+            };
+            result.sheets[sheetName] = resultSheet;
+            if (!headerOnly) {
+                resultSheet.data = copy(sheet.data);
+                if (sheet.data["!type"] === Type.Sheet) {
+                    for (const key of keys(sheet.data)) {
+                        const row = checkType<TRow>(sheet.data[key], Type.Row);
+                        for (const k in row) {
+                            if (!k.startsWith("!") && typeof row[k] === "object") {
+                                row[k]["!row"] = row;
+                            }
                         }
                     }
                 }

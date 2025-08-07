@@ -58,7 +58,7 @@ export const simpleSheet = (workbook: Workbook, writer: string, sheetNames?: str
     return result;
 };
 
-export const StringifyProcessor: Processor = (
+export const StringifyProcessor: Processor = async (
     workbook: Workbook,
     sheet: Sheet,
     ruleName?: string
@@ -71,7 +71,11 @@ export const StringifyProcessor: Processor = (
     write(workbook.writer, workbook.path, data, "stringify");
 };
 
-export const DefineProcessor: Processor = (workbook: Workbook, sheet: Sheet, action?: string) => {
+export const DefineProcessor: Processor = async (
+    workbook: Workbook,
+    sheet: Sheet,
+    action?: string
+) => {
     const data = defineSheet(sheet);
     write(workbook.writer, workbook.path, data, "define");
     if (action !== "keep_sheet") {
@@ -79,11 +83,11 @@ export const DefineProcessor: Processor = (workbook: Workbook, sheet: Sheet, act
     }
 };
 
-export const ConfigProcessor: Processor = (workbook: Workbook, sheet: Sheet) => {
+export const ConfigProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
     sheet.data = configSheet(sheet);
 };
 
-export const MapProcessor: Processor = (
+export const MapProcessor: Processor = async (
     workbook: Workbook,
     sheet: Sheet,
     value: string,
@@ -92,11 +96,15 @@ export const MapProcessor: Processor = (
     sheet.data = mapSheet(sheet, value, ...ks);
 };
 
-export const CollapseProcessor: Processor = (workbook: Workbook, sheet: Sheet, ...ks: string[]) => {
+export const CollapseProcessor: Processor = async (
+    workbook: Workbook,
+    sheet: Sheet,
+    ...ks: string[]
+) => {
     sheet.data = collapseSheet(sheet, ...ks);
 };
 
-export const ColumnProcessor: Processor = (
+export const ColumnProcessor: Processor = async (
     workbook: Workbook,
     sheet: Sheet,
     idxKey: string,
@@ -105,11 +113,11 @@ export const ColumnProcessor: Processor = (
     sheet.data = columnSheet(sheet, idxKey, ...foldKeys);
 };
 
-export const TypedefProcessor: Processor = (workbook: Workbook, sheet: Sheet) => {
+export const TypedefProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
     write(workbook.writer, workbook.path, workbook as unknown as TObject, "typedef");
 };
 
-export const AutoRegisterProcessor: Processor = (workbook: Workbook) => {
+export const AutoRegisterProcessor: Processor = async (workbook: Workbook) => {
     for (const sheetName in workbook.sheets) {
         const sheet = workbook.sheets[sheetName];
         if (!sheet.processors.find((p) => p.name === "define")) {

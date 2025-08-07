@@ -156,3 +156,14 @@ export interface GeneratedItemMapObjRow {
     readonly name: string;
 }
 
+/**
+ * path: test/res/item.xlsx
+ */
+export interface GeneratedItemTable {
+    readonly follow: { [key: number | string]: GeneratedItemFollowRow };
+    readonly item: { [key: number | string]: GeneratedItemItemRow };
+    readonly map: { [key: number | string]: GeneratedItemMapRow };
+    readonly map_arr: { [key: number | string]: GeneratedItemMapArrRow };
+    readonly map_field: { [key: number | string]: GeneratedItemMapFieldRow };
+    readonly map_obj: { [key: number | string]: GeneratedItemMapObjRow };
+}
