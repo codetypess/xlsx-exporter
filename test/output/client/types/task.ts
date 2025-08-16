@@ -43,19 +43,19 @@ export interface GeneratedTaskBranchRow {
      */
     readonly args: unknown;
     /**
-     * 奖励 (location: L1) (checker: $[*].id==item#item.id)
+     * 奖励 (location: M1) (checker: $[*].id==item#item.id)
      */
     readonly reward: unknown;
     /**
-     * 任务icon (location: M1) (checker: x)
+     * 任务icon (location: N1) (checker: x)
      */
     readonly icon: string;
     /**
-     *  (location: N1) (checker: x)
+     *  (location: O1) (checker: x)
      */
     readonly custom?: string;
     /**
-     * 完成后自动提交 (location: O1) (checker: x)
+     * 完成后自动提交 (location: P1) (checker: x)
      */
     readonly auto_submit?: number;
 }

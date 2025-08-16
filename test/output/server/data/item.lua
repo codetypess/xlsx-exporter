@@ -181,14 +181,12 @@ return {
     [1] = {
       [1] = {
         comment = "测试",
-        id = 1,
         kind = 1,
         level = 1,
         name = "测试1",
       },
       [2] = {
         comment = "测试",
-        id = 2,
         kind = 1,
         level = 2,
         name = "测试2",
@@ -197,14 +195,12 @@ return {
     [2] = {
       [1] = {
         comment = "测试",
-        id = 3,
         kind = 2,
         level = 1,
         name = "测试21",
       },
       [2] = {
         comment = "测试",
-        id = 4,
         kind = 2,
         level = 2,
         name = "测试22",

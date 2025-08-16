@@ -63,10 +63,6 @@ export interface GeneratedItemItemRow {
 // file: test/res/item.xlsx
 export interface GeneratedItemMapRow {
     /**
-     * ### (location: A2) (checker: x)
-     */
-    readonly id: number;
-    /**
      * 注释 (location: B2) (checker: x)
      */
     readonly comment: string;

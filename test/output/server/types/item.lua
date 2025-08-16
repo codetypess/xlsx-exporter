@@ -20,7 +20,6 @@
 
 ---file: test/res/item.xlsx
 ---@class xlsx.server.ItemMap
----@field id integer ###
 ---@field comment string 注释
 ---@field kind integer 
 ---@field level integer 

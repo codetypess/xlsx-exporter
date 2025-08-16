@@ -78,6 +78,7 @@ export type Field = {
     checker: CheckerType[];
     comment: string;
     refer: string;
+    ignore: boolean;
 };
 
 export type Sheet = {
@@ -150,7 +151,7 @@ export function error(msg: string): never {
     throw new Error(msg);
 }
 
-export function assert(condition: boolean, msg: string): asserts condition {
+export function assert(condition: unknown, msg: string): asserts condition {
     if (!condition) {
         error(msg);
     }
@@ -576,6 +577,7 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
                     checker: parseChecker(path, parsed[name], c, checker),
                     comment,
                     refer: toRef(c, r),
+                    ignore: false,
                 });
             }
         }
@@ -628,9 +630,17 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
                 if (field.index === 0) {
                     sheet.data[cell.v as string] = row;
                     if (field.name.startsWith("--")) {
-                        row["!ignore"] = row["!ignore"] ?? {};
+                        row["!ignore"] ??= {};
                         row["!ignore"][field.name] = true;
+                        field.ignore = true;
                     }
+                } else if (field.typename.startsWith("@")) {
+                    const typename = field.typename.slice(1);
+                    row["!ignore"] ??= {};
+                    row["!ignore"][typename] = true;
+                    const refField = sheet.fields.find((f) => f.name === typename);
+                    assert(refField, `Type field not found: ${typename} at ${field.refer}`);
+                    refField.ignore = true;
                 }
             }
         }
@@ -672,7 +682,14 @@ const parseBody = () => {
                 for (const field of sheet.fields) {
                     const cell = row[field.name];
                     checkType(cell, Type.Cell);
-                    convertValue(cell, field.typename);
+                    let typename = field.typename;
+                    if (typename.startsWith("@")) {
+                        typename = row[typename.slice(1)]?.v as string;
+                        if (!typename) {
+                            error(`type not found for ${cell.r}`);
+                        }
+                    }
+                    convertValue(cell, typename);
                 }
                 if (remap) {
                     delete sheet.data[key];

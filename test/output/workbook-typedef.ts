@@ -25,7 +25,7 @@ export interface ItemDefine {
     /**
      *  (location: F2) (checker: x) (writer: client|server)
      */
-    value: { v:string };
+    value: { v:unknown };
     /**
      *  (location: G2) (checker: x) (writer: client|server)
      */
@@ -98,10 +98,6 @@ export interface ItemItem {
 
 // file: test/res/item.xlsx
 export interface ItemMap {
-    /**
-     * ### (location: A2) (checker: x) (writer: client|server)
-     */
-    id: { v:number };
     /**
      * 注释 (location: B2) (checker: x) (writer: client|server)
      */
@@ -235,19 +231,23 @@ export interface TaskBranch {
      */
     args: { v:unknown };
     /**
-     * 奖励 (location: L1) (checker: $[*].id==item#item.id) (writer: client|server)
+     * 参数类型 (location: L1) (checker: x) (writer: client|server)
+     */
+    args_type: { v:string };
+    /**
+     * 奖励 (location: M1) (checker: $[*].id==item#item.id) (writer: client|server)
      */
     reward: { v:unknown };
     /**
-     * 任务icon (location: M1) (checker: x) (writer: client)
+     * 任务icon (location: N1) (checker: x) (writer: client)
      */
     icon: { v:string };
     /**
-     *  (location: N1) (checker: x) (writer: client)
+     *  (location: O1) (checker: x) (writer: client)
      */
     custom: { v?:string };
     /**
-     * 完成后自动提交 (location: O1) (checker: x) (writer: client)
+     * 完成后自动提交 (location: P1) (checker: x) (writer: client)
      */
     auto_submit: { v?:number };
 }
@@ -301,7 +301,7 @@ export interface TaskDefine {
     /**
      *  (location: F2) (checker: $&key2=MAIN==#main.type&condition=mainline_event) (writer: client|server)
      */
-    value: { v:string };
+    value: { v:unknown };
     /**
      *  (location: G2) (checker: x) (writer: client|server)
      */

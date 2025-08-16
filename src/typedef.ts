@@ -19,7 +19,7 @@ const writeTsType = (field: string, typealias: TypeDecl, buffer: StringBuffer) =
         const optional = type["!optional"] ? "?" : "";
         const array = type["!array"] ?? "";
         let realtype = type.value;
-        realtype = convertors[realtype].realtype ?? realtype;
+        realtype = convertors[realtype]?.realtype ?? realtype;
         if (type["!comment"]) {
             buffer.writeLine(`/**`);
             buffer.writeLine(` * ${type["!comment"]}`);
@@ -59,7 +59,7 @@ export const genTsTypedef = (path: string, writer: string, maker?: ClassNameMake
         buffer.writeLine(`export interface ${className} {`);
         buffer.indent();
         for (const field of sheet.fields) {
-            if (field.name.startsWith("--")) {
+            if (field.ignore) {
                 continue;
             }
             const checker = field.checker.map((v) => v.def).join(";");
@@ -112,12 +112,13 @@ export const genLuaTypedef = (path: string, writer: string, maker?: ClassNameMak
         buffer.writeLine(`---file: ${path}`);
         buffer.writeLine(`---@class ${className}`);
         for (const field of sheet.fields) {
-            if (field.name.startsWith("--")) {
+            if (field.ignore) {
                 continue;
             }
             const optional = field.typename.endsWith("?") ? "?" : "";
             let typename = field.typename.replaceAll("?", "").replaceAll("[]", "");
-            typename = convertors[typename].realtype ?? typename;
+            typename = convertors[typename]?.realtype ?? typename;
+            typename = typename.startsWith("@") ? "table" : typename;
             const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
             if (typename === "int") {
                 buffer.writeLine(`---@field ${field.name}${optional} integer ${comment}`);
@@ -161,11 +162,13 @@ export const genWorkbookTypedef = () => {
                 const optional = field.typename.endsWith("?") ? "?" : "";
                 const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
                 let typename = field.typename.replaceAll("?", "");
-                if (!convertors[typename]) {
+                if (typename.startsWith("@")) {
+                    typename = "unknown";
+                } else if (!convertors[typename]) {
                     const where = `file: ${path}#${sheet.name}#${field.refer}:${field.name}`;
                     throw new Error(`convertor not found: ${typename} (${where})`);
                 }
-                typename = convertors[typename].realtype ?? typename;
+                typename = convertors[typename]?.realtype ?? typename;
                 buffer.writeLine(`/**`);
                 buffer.writeLine(
                     ` * ${comment} (location: ${field.refer}) (checker: ${checker || "x"}) ` +
