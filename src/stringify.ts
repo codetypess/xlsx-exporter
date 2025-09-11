@@ -78,7 +78,9 @@ const numberToString = (value: number, precision?: number) => {
 // Json
 //-----------------------------------------------------------------------------
 export type JsonStringifyOption = {
+    /** default: 4 */
     indent?: number;
+    /** default: 10 */
     precision?: number;
 };
 
@@ -190,8 +192,10 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
 // Lua
 //-----------------------------------------------------------------------------
 type LuaStringifyOption = {
+    /** default: 4 */
     indent?: number;
     marshal?: string;
+    /** default: 10 */
     precision?: number;
 };
 
@@ -321,9 +325,13 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
 // TypeScript
 //-----------------------------------------------------------------------------
 type TsStringifyOption = {
+    /** default: 4 */
     indent?: number;
     marshal?: string;
+    /** default: 10 */
     precision?: number;
+    /** default: true */
+    asconst?: boolean;
 };
 
 export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
@@ -331,6 +339,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
     option = option ?? {};
     option.indent = Math.max(option.indent ?? 4, 0);
     option.precision = option.precision ?? 10;
+    option.asconst = option.asconst ?? true;
     const buffer = new StringBuffer(option.indent);
     const enumBuffer = new StringBuffer(option.indent);
     const ctx: StringifyContext = {
@@ -475,7 +484,11 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
     }
 
     writeTsValue(data);
-    buffer.writeString(" as const;");
+    if (option.asconst) {
+        buffer.writeString(" as const;");
+    } else {
+        buffer.writeString(";");
+    }
 
     const enumString = enumBuffer.toString();
     if (enumString) {

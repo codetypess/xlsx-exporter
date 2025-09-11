@@ -9,6 +9,7 @@ import {
     TypeDecl,
     TypeName,
     TypeStruct,
+    TypeTag,
 } from "./xlsx";
 
 type ClassNameMaker = (className: string) => string;
@@ -69,11 +70,13 @@ export const genTsTypedef = (path: string, writer: string, maker?: ClassNameMake
                 ` * ${comment} (location: ${field.refer}) (checker: ${checker || "x"})`
             );
             buffer.writeLine(` */`);
+            const typename = field.typename;
             writeTsType(
                 field.name,
                 field.typedecl ??
-                    makeTypeName(field.typename.replaceAll("?", ""), {
-                        "!optional": field.typename.includes("?"),
+                    makeTypeName(typename.replaceAll("?", "").replaceAll("[]", ""), {
+                        "!optional": typename.includes("?"),
+                        "!array": (typename.match(/[[\]]+/)?.[0] ?? undefined) as TypeTag["!array"],
                     }),
                 buffer
             );
@@ -103,21 +106,22 @@ export const genLuaTypedef = (path: string, writer: string, maker?: ClassNameMak
                 continue;
             }
             const optional = field.typename.endsWith("?") ? "?" : "";
+            const array = field.typename.match(/[[\]]+/)?.[0] ?? "";
             let typename = field.typename.replaceAll("?", "").replaceAll("[]", "");
             typename = convertors[typename]?.realtype ?? typename;
             typename = typename.startsWith("@") ? "table" : typename;
             const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
             if (typename === "int") {
-                buffer.writeLine(`---@field ${field.name}${optional} integer ${comment}`);
+                buffer.writeLine(`---@field ${field.name}${optional} integer${array} ${comment}`);
             } else if (typename === "float") {
-                buffer.writeLine(`---@field ${field.name}${optional} number ${comment}`);
+                buffer.writeLine(`---@field ${field.name}${optional} number${array} ${comment}`);
             } else if (typename === "string") {
-                buffer.writeLine(`---@field ${field.name}${optional} string ${comment}`);
+                buffer.writeLine(`---@field ${field.name}${optional} string${array} ${comment}`);
             } else if (typename === "bool") {
-                buffer.writeLine(`---@field ${field.name}${optional} boolean ${comment}`);
+                buffer.writeLine(`---@field ${field.name}${optional} boolean${array} ${comment}`);
             } else {
                 buffer.writeLine(
-                    `---@field ${field.name}${optional} ${maker(typename)} ${comment}`
+                    `---@field ${field.name}${optional} ${maker(typename)}${array} ${comment}`
                 );
             }
         }
@@ -148,7 +152,8 @@ export const genWorkbookTypedef = () => {
                 const checker = field.checker.map((v) => v.def).join(";");
                 const optional = field.typename.endsWith("?") ? "?" : "";
                 const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
-                let typename = field.typename.replaceAll("?", "");
+                const array = field.typename.match(/[[\]]+/)?.[0] ?? "";
+                let typename = field.typename.replaceAll("?", "").replaceAll("[]", "");
                 if (typename.startsWith("@")) {
                     typename = "unknown";
                 } else if (!convertors[typename]) {
@@ -163,13 +168,13 @@ export const genWorkbookTypedef = () => {
                 );
                 buffer.writeLine(` */`);
                 if (typename === "int" || typename === "float") {
-                    buffer.writeLine(`${field.name}: { v${optional}:number };`);
+                    buffer.writeLine(`${field.name}: { v${optional}:number${array} };`);
                 } else if (typename === "string") {
-                    buffer.writeLine(`${field.name}: { v${optional}:string };`);
+                    buffer.writeLine(`${field.name}: { v${optional}:string${array} };`);
                 } else if (typename === "bool") {
-                    buffer.writeLine(`${field.name}: { v${optional}:boolean };`);
+                    buffer.writeLine(`${field.name}: { v${optional}:boolean${array} };`);
                 } else {
-                    buffer.writeLine(`${field.name}: { v${optional}:unknown };`);
+                    buffer.writeLine(`${field.name}: { v${optional}:unknown${array} };`);
                 }
             }
             buffer.unindent();

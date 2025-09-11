@@ -429,7 +429,7 @@ export interface TaskMain {
     /**
      * 支线任务 (location: G1) (checker: $[*]==#branch.id) (writer: client|server)
      */
-    branch_tasks: { v?:unknown };
+    branch_tasks: { v?:number[] };
     /**
      * 条件 (location: H1) (checker: x) (writer: client|server)
      */

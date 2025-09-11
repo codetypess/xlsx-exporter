@@ -464,6 +464,8 @@
         "type": 17
       },
       "auto_submit": 1,
+      "branch_tasks": [
+      ],
       "condition": "mainline_event",
       "custom": {
         "born_pos": "custom_point_10012"

@@ -185,7 +185,7 @@ export interface GeneratedTaskMainRow {
     /**
      * 支线任务 (location: G1) (checker: $[*]==#branch.id)
      */
-    readonly branch_tasks?: unknown;
+    readonly branch_tasks?: number[];
     /**
      * 条件 (location: H1) (checker: x)
      */

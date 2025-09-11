@@ -57,7 +57,7 @@ export type TObject = { [k: string | number]: TValue } & Tag;
 export type TArray = TValue[] & Tag;
 export type TRow = { [k: string]: TCell } & Tag;
 
-type TypeTag = {
+export type TypeTag = {
     "!type": Type.TypeName | Type.TypeStruct;
     "!array"?: "[]" | "[][]" | "[][][]" | "[][][][]";
     "!comment"?: string;
@@ -271,45 +271,112 @@ export const registerWriter = (name: string, writer: Writer) => {
     writers[name] = writer;
 };
 
+const tokenizeArray = (str: string) => {
+    if (!str.startsWith("[") || !str.endsWith("]")) {
+        error(`Invalid array string: '${str}'`);
+    }
+
+    const tokens: string[] = [];
+    let current = "";
+    let quote = "";
+    let depth = 0;
+    const content = str.slice(1, -1);
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        if (!quote) {
+            if (char === '"' || char === "'") {
+                quote = char;
+                current += char;
+            } else if (char === "{" || char === "[") {
+                depth++;
+                current += char;
+            } else if (char === "}" || char === "]") {
+                depth--;
+                current += char;
+            } else if (char === "," && depth === 0) {
+                current = current.trim();
+                if (current) {
+                    tokens.push(current);
+                    current = "";
+                }
+            } else {
+                current += char;
+            }
+        } else {
+            current += char;
+            if (char === quote && content[i - 1] !== "\\") {
+                quote = "";
+            }
+        }
+    }
+
+    current = current.trim();
+    if (current) {
+        tokens.push(current);
+    }
+
+    return tokens;
+};
+
+const convertArray = (str: string, typename: string) => {
+    typename = typename.replace("[]", "");
+    const tokens = tokenizeArray(str);
+    return tokens.map((s) => convertValue(s, typename));
+};
+
 export function convertValue(cell: TCell, typename: string): TCell;
 export function convertValue(value: string, typename: string): TValue;
 export function convertValue(cell: TCell | string, typename: string) {
-    const convertor = convertors[typename.replace("?", "")];
+    const convertor = convertors[typename.replace("?", "").replaceAll("[]", "")];
     if (!convertor) {
         error(`Convertor not found: '${typename}'`);
     }
-    if (typeof cell === "string") {
-        const v = convertor.exec(cell) ?? null;
-        if (v === null) {
-            error(`Convert value error: '${cell}' => type '${typename}'`);
-        }
-        return v;
-    } else {
-        if (typename.endsWith("?") && (cell.v === "" || cell.v === null)) {
+
+    const rawtypename = typename.replace("?", "");
+    let v = typeof cell === "string" ? cell : cell.v;
+
+    if (typeof cell !== "string" && cell.t?.replace("?", "") === rawtypename) {
+        return cell;
+    }
+
+    if (typename.includes("?") && (v === "" || v === null)) {
+        if (typeof cell === "string") {
+            return null;
+        } else {
             cell.s = "null";
             cell.v = null;
-        } else {
-            if (cell.t?.replace("?", "") === typename.replace("?", "")) {
-                return cell;
-            }
-
-            const v = cell.v;
-            if (typeof v === "object") {
-                error(`cell value is an object: ${JSON.stringify(v)}`);
-            }
-
-            cell.s = toString(cell);
-            cell.t = typename;
-            try {
-                cell.v = convertor.exec(cell.s) ?? null;
-            } catch (e) {
-                console.error(e);
-                cell.v = null;
-            }
-            if (cell.v === null) {
-                error(`Convert value error at ${cell.r}: '${v}' => type '${typename}'`);
-            }
+            return cell;
         }
+    }
+
+    if (typeof v === "object") {
+        error(`cell value is an object: ${JSON.stringify(v)}`);
+    }
+
+    v = String(v).trim();
+
+    let result: TValue = null;
+
+    try {
+        if (typename.includes("[]")) {
+            result = convertArray(v, rawtypename);
+        } else {
+            result = convertor.exec(v) ?? null;
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+    if (result === null) {
+        error(`Convert value error: '${cell}' => type '${typename}'`);
+    }
+
+    if (typeof cell === "string") {
+        return result;
+    } else {
+        cell.s = v;
+        cell.v = result;
+        cell.t = typename;
         return cell;
     }
 }

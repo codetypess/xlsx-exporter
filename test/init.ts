@@ -13,6 +13,15 @@ import * as xlsx from "..";
             return null;
         }
     });
+    xlsx.registerType("item", (value) => {
+        try {
+            type Item = [number, number];
+            const item = xlsx.convertValue(value, "json") as Item;
+            return { id: item[0], count: item[1] };
+        } catch {
+            return null;
+        }
+    });
 }
 
 xlsx.registerChecker("TaskArgsChecker", () => () => true);

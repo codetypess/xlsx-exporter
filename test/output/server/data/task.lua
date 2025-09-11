@@ -426,6 +426,8 @@ return {
         id = 5,
         type = 17,
       },
+      branch_tasks = {
+      },
       condition = "mainline_event",
       desc = "主线任务1",
       id = 1001,
