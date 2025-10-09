@@ -65,16 +65,16 @@ export type Field = {
     name: string;
     typename: string;
     realtype?: string;
+    ignore: boolean;
     writers: string[];
     checker: CheckerType[];
     comment: string;
     refer: string;
-    ignore: boolean;
 };
 
 export type Sheet = {
     name: string;
-    typedef: boolean;
+    ignore: boolean;
     processors: { name: string; args: string[] }[];
     fields: Field[];
     data: TObject;
@@ -559,7 +559,7 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
 
         const sheet: Sheet = {
             name: sheetName,
-            typedef: true,
+            ignore: false,
             processors: [],
             fields: [],
             data: {},
@@ -593,9 +593,7 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
             const checker = toString(readCell(sheetData, r + 3, c));
             const comment = toString(readCell(sheetData, r + 4, c));
 
-            if (!name || !typename) {
-                break;
-            } else if (writer !== "x") {
+            if (name && typename && writer !== "x") {
                 const arr = writer
                     .split("|")
                     .map((w) => w.trim())
@@ -656,15 +654,18 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
         const start = toString(readCell(sheetData, 0, 0)).startsWith("@")
             ? MAX_HEADERS
             : MAX_HEADERS - 1;
-        loop: for (let r = start; r < sheetData.length; r++) {
+        for (let r = start; r < sheetData.length; r++) {
             const row: TObject = {};
             row["!type"] = Type.Row;
-            for (const field of sheet.fields) {
+            loop: for (const field of sheet.fields) {
                 const cell: TCell = readCell(sheetData, r, field.index);
-                if (field.index === 0 && cell.v === "") {
+                if (cell.v === "" && field.index === 0) {
                     break loop;
                 }
                 if (field.typename === "auto") {
+                    if (cell.v !== "-") {
+                        error(`Expected '-' at ${toRef(0, r)}, but got '${cell.v}'`);
+                    }
                     cell.v = r - start + 1;
                 }
                 cell["!field"] = field;
@@ -912,7 +913,7 @@ const copyOf = (workbook: Workbook, writer: string, headerOnly: boolean = false)
         if (sheet.fields[0].writers.includes(writer)) {
             const resultSheet: Sheet = {
                 name: sheet.name,
-                typedef: sheet.typedef,
+                ignore: sheet.ignore,
                 processors: structuredClone(sheet.processors),
                 fields: structuredClone(sheet.fields).filter((f) => f.writers.includes(writer)),
                 data: {},

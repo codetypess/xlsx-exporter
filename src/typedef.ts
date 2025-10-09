@@ -15,7 +15,7 @@ export const genTsTypedef = (path: string, writer: string, resolver: TypeResolve
     const workbook = getWorkbook(path, writer);
     const sheets = Object.values(workbook.sheets)
         .sort((a, b) => a.name.localeCompare(b.name))
-        .filter((s) => s.typedef);
+        .filter((s) => !s.ignore);
     const typeBuffer = new StringBuffer(4);
     const name = filename(path);
     const namedTypes: Record<string, Set<string>> = {};
@@ -23,10 +23,7 @@ export const genTsTypedef = (path: string, writer: string, resolver: TypeResolve
         const className = toPascalCase(`Generated_${name}_${sheet.name}_Row`);
         typeBuffer.writeLine(`export interface ${className} {`);
         typeBuffer.indent();
-        for (const field of sheet.fields) {
-            if (field.ignore) {
-                continue;
-            }
+        for (const field of sheet.fields.filter((f) => !f.ignore)) {
             const checker = field.checker.map((v) => v.def).join(";");
             const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
             typeBuffer.writeLine(`/**`);
@@ -90,17 +87,14 @@ export const genLuaTypedef = (path: string, writer: string, resolver: TypeResolv
     const workbook = getWorkbook(path, writer);
     const sheets = Object.values(workbook.sheets)
         .sort((a, b) => a.name.localeCompare(b.name))
-        .filter((s) => s.typedef);
+        .filter((s) => !s.ignore);
     const buffer = new StringBuffer(4);
     const name = filename(path);
     for (const sheet of sheets) {
         const className = `xlsx.${writer}.` + toPascalCase(`${name}_${sheet.name}`);
         buffer.writeLine(`---file: ${path}`);
         buffer.writeLine(`---@class ${className}`);
-        for (const field of sheet.fields) {
-            if (field.ignore) {
-                continue;
-            }
+        for (const field of sheet.fields.filter((f) => !f.ignore)) {
             const optional = field.typename.endsWith("?") ? "?" : "";
             const array = field.typename.match(/[[\]]+/)?.[0] ?? "";
             let typename = field.typename.replaceAll("?", "").replaceAll("[]", "");
@@ -142,6 +136,16 @@ export const genWorkbookTypedef = (resolver: TypeResolver) => {
 
             // row
             typeBuffer.writeLine(`// file: ${path}`);
+            if (sheet.processors.length > 0) {
+                typeBuffer.writeLine(`// processors:`);
+                for (const p of sheet.processors) {
+                    typeBuffer.writeString(`//  - @${p.name}`);
+                    if (p.args.length > 0) {
+                        typeBuffer.writeString(`(${p.args.join(", ")})`);
+                    }
+                    typeBuffer.writeLine("");
+                }
+            }
             typeBuffer.writeLine(`export interface ${className} {`);
             typeBuffer.indent();
             for (const field of sheet.fields) {

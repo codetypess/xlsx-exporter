@@ -65,7 +65,7 @@ export class ColumnIndexer<T = TRow> {
         }
     }
 
-    get rows(): ReadonlyArray<T> {
+    get rows(): readonly T[] {
         this._init();
         return this._rows as T[];
     }
@@ -81,10 +81,10 @@ export class ColumnIndexer<T = TRow> {
         }
     }
 
-    get(key: string | number): T[];
-    get(filter: readonly RowFilter[]): T[];
-    get(cond: (v: T) => boolean): T[];
-    get(cond: string | number | readonly RowFilter[] | ((v: T) => boolean)): T[] {
+    get(key: string | number): readonly T[];
+    get(filter: readonly RowFilter[]): readonly T[];
+    get(cond: (v: T) => boolean): readonly T[];
+    get(cond: string | number | readonly RowFilter[] | ((v: T) => boolean)): readonly T[] {
         this._init();
         if (typeof cond === "string" || typeof cond === "number") {
             return this._cache[cond] ?? [];
@@ -142,7 +142,7 @@ export class RowIndexer<T = TRow> {
         }
     }
 
-    get rows(): ReadonlyArray<T> {
+    get rows(): readonly T[] {
         this._init();
         return this._rows as T[];
     }
@@ -160,9 +160,11 @@ export class RowIndexer<T = TRow> {
     }
 
     get(key: string | number): T | null;
-    get(filter: readonly RowFilter[]): T[];
-    get(filter: (v: T) => boolean): T[];
-    get(cond: string | number | readonly RowFilter[] | ((v: T) => boolean)): T | T[] | null {
+    get(filter: readonly RowFilter[]): readonly T[];
+    get(filter: (v: T) => boolean): readonly T[];
+    get(
+        cond: string | number | readonly RowFilter[] | ((v: T) => boolean)
+    ): T | readonly T[] | null {
         this._init();
         if (typeof cond === "string" || typeof cond === "number") {
             return this._cache[cond] ?? null;

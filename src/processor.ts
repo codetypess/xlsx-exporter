@@ -78,12 +78,12 @@ export const DefineProcessor: Processor = async (
     const data = defineSheet(sheet);
     write(workbook.writer, workbook.path, data, "define");
     sheet.data = {};
-    sheet.typedef = false;
+    sheet.ignore = true;
 };
 
 export const ConfigProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
     sheet.data = configSheet(sheet);
-    sheet.typedef = false;
+    sheet.ignore = true;
 };
 
 export const MapProcessor: Processor = async (
