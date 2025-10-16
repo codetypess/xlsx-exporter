@@ -219,7 +219,10 @@ const mergeInterfaces = (
 
     // Add interfaces that only exist in ts file
     tsInterfaces.forEach((tsInterface) => {
-        if (!autoInterfaces.find((auto) => auto.name === tsInterface.name)) {
+        if (
+            !autoInterfaces.find((auto) => auto.name === tsInterface.name) &&
+            !tsInterface.name.match(/^Generated.+Row$/)
+        ) {
             mergedInterfaces.push(tsInterface);
         }
     });

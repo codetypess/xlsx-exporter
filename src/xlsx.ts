@@ -1,4 +1,4 @@
-import { basename } from "path";
+import { basename, dirname } from "path";
 import xlsx from "xlsx";
 import { type StringifyContext } from "./stringify";
 import { keys, values } from "./util";
@@ -143,10 +143,11 @@ export const doing = (msg: string) => {
 };
 
 export function error(msg: string): never {
+    let str = "";
     if (doings.length > 0) {
-        console.log(" -> " + doings.join("\n -> "));
+        str = "\n    doing:\n" + doings.map((v) => `      -> ${v}`).join("\n");
     }
-    throw new Error(msg);
+    throw new Error(msg + str);
 }
 
 export function assert(condition: unknown, msg: string): asserts condition {
@@ -411,7 +412,16 @@ const parseProcessor = (str: string) => {
 
 const makeFilePath = (path: string) => (path.endsWith(".xlsx") ? path : path + ".xlsx");
 
-const parseChecker = (
+const resolveFile = (base: string, target: string) => {
+    const dir = basename(dirname(base));
+    const file = `${dir}/${target}`;
+    const found = Object.keys(workbooks[DEFAULT_WRITER])
+        .filter((v) => v.endsWith(file))
+        .filter((v) => basename(v) === basename(file));
+    return found.length === 1 ? file : target;
+};
+
+export const parseChecker = (
     rowFile: string,
     rowSheet: string,
     refer: string,
@@ -505,7 +515,7 @@ const parseChecker = (
                         rowSheet,
                         rowKey,
                         rowFilter,
-                        makeFilePath(colFile || rowFile),
+                        colFile ? resolveFile(rowFile, makeFilePath(colFile)) : rowFile,
                         colSheet,
                         colKey,
                         colFilter,
@@ -554,15 +564,7 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
             {} as Record<string, number>
         );
 
-    const workbook: Workbook = {
-        path: path,
-        writer: DEFAULT_WRITER,
-        sheets: {},
-    };
-
-    workbooks[DEFAULT_WRITER] ||= {};
-    workbooks[DEFAULT_WRITER][path] = workbook;
-
+    const workbook = workbooks[DEFAULT_WRITER][path];
     const writerKeys = Object.keys(writers);
 
     let firstSheet: Sheet | null = null;
@@ -875,6 +877,14 @@ const applyProcessor = async (stage: ProcessorOption["stage"], writer?: string) 
 };
 
 export const parse = async (fs: string[], headerOnly: boolean = false) => {
+    workbooks[DEFAULT_WRITER] ||= {};
+    for (const file of fs) {
+        workbooks[DEFAULT_WRITER][file] = {
+            path: file,
+            writer: DEFAULT_WRITER,
+            sheets: {},
+        };
+    }
     for (const file of fs) {
         console.log(`reading: '${file}'`);
         const data = xlsx.readFile(file, {
