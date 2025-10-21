@@ -807,8 +807,8 @@ const invokeChecker = (sheet: Sheet, field: Field, errors: string[]) => {
     }
 };
 
-const applyChecker = () => {
-    console.log("applying checker");
+const performChecker = () => {
+    console.log("performing checker");
     for (const writer in writers) {
         currentWriter = writer;
         const errors: string[] = [];
@@ -833,14 +833,14 @@ const applyChecker = () => {
     currentWriter = DEFAULT_WRITER;
 };
 
-const applyProcessor = async (stage: ProcessorOption["stage"], writer?: string) => {
+const performProcessor = async (stage: ProcessorOption["stage"], writer?: string) => {
     type ProcessorEntry = {
         processor: ProcessorType;
         sheet: Sheet;
         args: string[];
         name: string;
     };
-    console.log(`applying processor: stage=${stage}`);
+    console.log(`performing processor: stage=${stage}`);
     for (const k in writers) {
         currentWriter = writer ?? k;
         for (const workbook of Object.values(workbooks[currentWriter])) {
@@ -862,7 +862,9 @@ const applyProcessor = async (stage: ProcessorOption["stage"], writer?: string) 
             }
             arr.sort((a, b) => a.processor.option.priority - b.processor.option.priority);
             for (const { processor, sheet, args, name } of arr) {
-                using _ = doing(`Applying processor '${name}' in '${workbook.path}#${sheet.name}'`);
+                using _ = doing(
+                    `Performing processor '${name}' in '${workbook.path}#${sheet.name}'`
+                );
                 try {
                     await processor.exec(workbook, sheet, ...args);
                 } catch (e) {
@@ -898,18 +900,18 @@ export const parse = async (fs: string[], headerOnly: boolean = false) => {
             readBody(file, data);
         }
     }
-    await applyProcessor("after-read", DEFAULT_WRITER);
+    await performProcessor("after-read", DEFAULT_WRITER);
     if (!headerOnly) {
-        await applyProcessor("pre-parse", DEFAULT_WRITER);
+        await performProcessor("pre-parse", DEFAULT_WRITER);
         parseBody();
-        await applyProcessor("after-parse");
-        await applyProcessor("pre-check");
+        await performProcessor("after-parse");
+        await performProcessor("pre-check");
         resolveChecker();
-        applyChecker();
-        await applyProcessor("after-check");
-        await applyProcessor("pre-stringify");
-        await applyProcessor("stringify");
-        await applyProcessor("after-stringify");
+        performChecker();
+        await performProcessor("after-check");
+        await performProcessor("pre-stringify");
+        await performProcessor("stringify");
+        await performProcessor("after-stringify");
     }
 };
 

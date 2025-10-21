@@ -6,6 +6,7 @@ import "./init";
 import "./processor/gen-indexer.processor";
 import "./processor/post_stringify.processor";
 import "./processor/validate.processor";
+import "./rule/task.rule";
 
 const t = Date.now();
 

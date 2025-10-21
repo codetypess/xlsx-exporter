@@ -305,7 +305,7 @@ export interface TaskConfRow {
 // file: test/res/task.xlsx
 // processors:
 //  - @define
-//  - @stringify
+//  - @stringify(task)
 //  - @typedef
 //  - @auto-register
 //  - @post_stringify

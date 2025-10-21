@@ -21,7 +21,7 @@ import {
     DefineProcessor,
     MapProcessor,
     mergeSheet,
-    registerStringifyRule,
+    registerStringify,
     simpleSheet,
     StringifyProcessor,
     TypedefProcessor,
@@ -80,5 +80,5 @@ registerProcessor("typedef", TypedefProcessor, {
 });
 registerProcessor("auto-register", AutoRegisterProcessor, { required: true, stage: "after-read" });
 
-registerStringifyRule("merge", mergeSheet);
-registerStringifyRule("simple", simpleSheet);
+registerStringify("merge", mergeSheet);
+registerStringify("simple", simpleSheet);

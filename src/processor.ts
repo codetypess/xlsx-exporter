@@ -25,7 +25,7 @@ import {
 export type StringifyRule = (workbook: Workbook, writer: string) => TObject;
 const rules: Record<string, StringifyRule> = {};
 
-export const registerStringifyRule = (name: string, rule: StringifyRule) => {
+export const registerStringify = (name: string, rule: StringifyRule) => {
     assert(!rules[name], `Stringify rule '${name}' already registered`);
     rules[name] = rule;
 };
