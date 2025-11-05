@@ -22,7 +22,7 @@ import {
     write,
 } from "./xlsx";
 
-export type StringifyRule = (workbook: Workbook) => TObject;
+export type StringifyRule = (workbook: Workbook) => object;
 const rules: Record<string, StringifyRule> = {};
 const NONE = {};
 
@@ -72,7 +72,7 @@ export const StringifyProcessor: Processor = async (
     }
     const data = rule(workbook);
     if (data !== NONE) {
-        write(workbook, "stringify", workbook.path, data);
+        write(workbook, "stringify", data);
     }
 };
 
@@ -85,7 +85,7 @@ export const DefineProcessor: Processor = async (
     if (name) {
         data["!name"] = name;
     }
-    write(workbook, "define", workbook.path, data);
+    write(workbook, "define", data);
     sheet.data = {};
     sheet.ignore = true;
 };
@@ -130,7 +130,7 @@ export const ColumnProcessor: Processor = async (
 };
 
 export const TypedefProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
-    write(workbook, "typedef", workbook.path, workbook as unknown as TObject);
+    write(workbook, "typedef", null!);
 };
 
 export const AutoRegisterProcessor: Processor = async (workbook: Workbook) => {

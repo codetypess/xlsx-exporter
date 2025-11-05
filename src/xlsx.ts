@@ -1,4 +1,4 @@
-import { basename } from "path";
+import { basename, extname } from "path";
 import xlsx from "xlsx";
 import { type StringifyContext } from "./stringify";
 import { keys, values } from "./util";
@@ -25,7 +25,7 @@ export type Tag = {
     /** type tag */
     ["!type"]?: string | Type;
     /** special stringify function */
-    ["!stringify"]?: (v: TValue, ctx: StringifyContext) => void;
+    ["!stringify"]?: (self: TValue, ctx: StringifyContext) => void;
     /** enum name */
     ["!enum"]?: string;
     /** comment */
@@ -51,36 +51,38 @@ export type TArray = TValue[] & Tag;
 export type TRow = { [k: string]: TCell } & Tag;
 
 export type Field = {
-    index: number;
-    name: string;
-    sheet: string;
-    path: string;
-    typename: string;
+    readonly index: number;
+    readonly name: string;
+    readonly sheet: string;
+    readonly path: string;
+    readonly typename: string;
+    readonly writers: string[];
+    readonly checker: CheckerType[];
+    readonly comment: string;
+    readonly refer: string;
     realtype?: string;
     ignore: boolean;
-    writers: string[];
-    checker: CheckerType[];
-    comment: string;
-    refer: string;
 };
 
 export type Sheet = {
-    name: string;
-    path: string;
+    readonly name: string;
+    readonly path: string;
+    readonly processors: { name: string; args: string[] }[];
+    readonly fields: Field[];
     ignore: boolean;
-    processors: { name: string; args: string[] }[];
-    fields: Field[];
     data: TObject;
 };
 
 export class Workbook {
     readonly path: string;
+    readonly name: string;
     readonly context: Context;
 
     private readonly _sheets: Record<string, Sheet>;
 
     constructor(context: Context, path: string) {
         this.path = path;
+        this.name = basename(path, extname(path));
         this._sheets = {};
         this.context = context;
     }
@@ -109,7 +111,7 @@ export class Workbook {
     }
 
     clone(ctx: Context) {
-        const result = new Workbook(ctx, this.path);
+        const newWorkbook = new Workbook(ctx, this.path);
 
         const includeWriters = (writers: string[]) => {
             if (ctx.writer === DEFAULT_WRITER || writers.length === 0) {
@@ -137,7 +139,7 @@ export class Workbook {
 
         for (const sheet of this.sheets) {
             if (includeWriters(sheet.fields[0].writers)) {
-                const resultSheet: Sheet = {
+                const newSheet: Sheet = {
                     name: sheet.name,
                     path: sheet.path,
                     ignore: sheet.ignore,
@@ -145,21 +147,21 @@ export class Workbook {
                     fields: structuredClone(sheet.fields).filter((f) => includeWriters(f.writers)),
                     data: {},
                 };
-                copyTag(sheet.data, resultSheet.data);
-                result.add(resultSheet);
+                copyTag(sheet.data, newSheet.data);
+                newWorkbook.add(newSheet);
                 for (const key of keys(sheet.data)) {
                     const row = sheet.data[key] as TRow;
-                    const copiedRow: TRow = {};
-                    copyTag(row, copiedRow);
-                    resultSheet.data[key] = copiedRow;
-                    for (const field of resultSheet.fields) {
-                        copiedRow[field.name] = deepCopy(row[field.name]);
+                    const newRow: TRow = {};
+                    copyTag(row, newRow);
+                    newSheet.data[key] = newRow;
+                    for (const field of newSheet.fields) {
+                        newRow[field.name] = deepCopy(row[field.name]);
                     }
                 }
             }
         }
 
-        return result;
+        return newWorkbook;
     }
 }
 
@@ -212,26 +214,26 @@ export type Convertor = (str: string) => TValue;
 export type Checker = (cell: TCell, row: TObject, field: Field, errors: string[]) => boolean;
 export type CheckerParser = (ctx: Context, ...args: string[]) => Checker;
 type CheckerType = {
-    name: string;
-    force: boolean;
-    source: string;
-    args: string[];
-    refer: string;
+    readonly name: string;
+    readonly force: boolean;
+    readonly source: string;
+    readonly args: string[];
+    readonly refer: string;
     exec: Checker;
 };
 
 export type Processor = (workbook: Workbook, sheet: Sheet, ...args: string[]) => Promise<void>;
 type ProcessorType = {
-    name: string;
-    option: ProcessorOption;
-    exec: Processor;
+    readonly name: string;
+    readonly option: ProcessorOption;
+    readonly exec: Processor;
 };
 type ProcessorOption = {
     /** Automatically added to every workbook. */
-    required: boolean;
+    readonly required: boolean;
     /** The priority of the processor, higher value means lower priority */
-    priority: number;
-    stage:
+    readonly priority: number;
+    readonly stage:
         | "after-read"
         | "pre-parse"
         | "after-parse"
@@ -242,7 +244,7 @@ type ProcessorOption = {
         | "after-stringify";
 };
 
-export type Writer = (workbook: Workbook, processor: string, path: string, data: TObject) => void;
+export type Writer = (workbook: Workbook, processor: string, data: TObject | TArray) => void;
 
 export const options = {
     suppressCheckers: [] as string[],
@@ -1085,10 +1087,10 @@ export const parse = async (fs: string[], headerOnly: boolean = false) => {
     }
 };
 
-export const write = (workbook: Workbook, processor: string, path: string, data: TObject) => {
+export const write = (workbook: Workbook, processor: string, data: object) => {
     const writer = workbook.context.writer;
     assert(!!writers[writer], `Writer not found: ${writer}`);
-    writers[writer](workbook, processor, path, data);
+    writers[writer](workbook, processor, data as TObject | TArray);
 };
 
 export const getRunningContext = () => {

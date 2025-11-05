@@ -14,9 +14,9 @@ const t = Date.now();
 
 const OUTPUT_DIR = "test/output";
 
-xlsx.registerWriter("client", (workbook, processor, path, data) => {
+xlsx.registerWriter("client", (workbook, processor, data) => {
     if (processor === "define") {
-        const name = xlsx.toPascalCase(data["!name"] ?? xlsx.filename(path));
+        const name = xlsx.toPascalCase(data["!name"] ?? workbook.name);
         const marshal = `export const ${name} = `;
         xlsx.writeFile(
             `${OUTPUT_DIR}/client/define/${name}.ts`,
@@ -24,52 +24,48 @@ xlsx.registerWriter("client", (workbook, processor, path, data) => {
         );
         defines.add(name);
     } else if (processor === "stringify") {
-        const name = xlsx.filename(path);
         xlsx.writeFile(
-            `${OUTPUT_DIR}/client/data/${name}.json`,
+            `${OUTPUT_DIR}/client/data/${workbook.name}.json`,
             xlsx.stringifyJson(data, { indent: 2 })
         );
     } else if (processor === "typedef") {
-        const name = xlsx.filename(path);
         const content = xlsx.genTsTypedef(workbook, (typename) => {
             return {
                 type: makeTypename(typename),
                 path: "../define/index",
             };
         });
-        xlsx.writeFile(`build/client/types/${name}.ts`, content);
-        const typePath = `${OUTPUT_DIR}/client/types/${name}.ts`;
+        xlsx.writeFile(`build/client/types/${workbook.name}.ts`, content);
+        const typePath = `${OUTPUT_DIR}/client/types/${workbook.name}.ts`;
         if (!fs.existsSync(typePath)) {
-            xlsx.writeFile(`${OUTPUT_DIR}/client/types/${name}.ts`, content);
+            xlsx.writeFile(`${OUTPUT_DIR}/client/types/${workbook.name}.ts`, content);
         }
-        types.add(name);
+        types.add(workbook.name);
     } else {
         throw new Error(`Unknown handler processor: ${processor}`);
     }
 });
 
-xlsx.registerWriter("server", (workbook, processor, path, data) => {
+xlsx.registerWriter("server", (workbook, processor, data) => {
     if (processor === "define") {
-        const name = (data["!name"] ?? xlsx.filename(path)).replaceAll(".", "_");
+        const name = (data["!name"] ?? workbook.name).replaceAll(".", "_");
         const marshal = `return `;
         xlsx.writeFile(
             `${OUTPUT_DIR}/server/define/${name}.lua`,
             xlsx.stringifyLua(data, { indent: 4, marshal })
         );
     } else if (processor === "stringify") {
-        const name = xlsx.filename(path);
         const marshal = `return `;
         xlsx.writeFile(
-            `${OUTPUT_DIR}/server/data/${name}.lua`,
+            `${OUTPUT_DIR}/server/data/${workbook.name}.lua`,
             xlsx.stringifyLua(data, { indent: 2, marshal })
         );
     } else if (processor === "typedef") {
-        const name = xlsx.filename(path);
         const content = xlsx.genLuaTypedef(workbook, (typename) => {
             return { type: makeTypename(typename) };
         });
         xlsx.writeFile(
-            `${OUTPUT_DIR}/server/types/${name}.lua`,
+            `${OUTPUT_DIR}/server/types/${workbook.name}.lua`,
             xlsx.outdent(`
                 -- AUTO GENERATED, DO NOT MODIFY!
                 

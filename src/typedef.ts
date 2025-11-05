@@ -1,5 +1,5 @@
 import { StringBuffer } from "./stringify";
-import { filename, toPascalCase } from "./util";
+import { toPascalCase } from "./util";
 import { Context, convertors, Workbook } from "./xlsx";
 
 const basicTypes = ["string", "number", "boolean", "unknown", "object"];
@@ -45,9 +45,8 @@ export const genTsTypedef = (workbook: Workbook, resolver: TypeResolver) => {
     const typeImporter = new TypeImporter(resolver);
     const sheets = workbook.sheets.filter((s) => !s.ignore);
     const typeBuffer = new StringBuffer(4);
-    const name = filename(workbook.path);
     for (const sheet of sheets) {
-        const className = toPascalCase(`Generated_${name}_${sheet.name}_Row`);
+        const className = toPascalCase(`Generated_${workbook.name}_${sheet.name}_Row`);
         typeBuffer.writeLine(`export interface ${className} {`);
         typeBuffer.indent();
         for (const field of sheet.fields.filter((f) => !f.ignore)) {
@@ -99,10 +98,9 @@ export const genTsTypedef = (workbook: Workbook, resolver: TypeResolver) => {
 export const genLuaTypedef = (workbook: Workbook, resolver: TypeResolver) => {
     const sheets = workbook.sheets.filter((s) => !s.ignore);
     const buffer = new StringBuffer(4);
-    const name = filename(workbook.path);
     for (const sheet of sheets) {
         const className =
-            `xlsx.${workbook.context.writer}.` + toPascalCase(`${name}_${sheet.name}`);
+            `xlsx.${workbook.context.writer}.` + toPascalCase(`${workbook.name}_${sheet.name}`);
         buffer.writeLine(`---file: ${workbook.path}`);
         buffer.writeLine(`---@class ${className}`);
         for (const field of sheet.fields.filter((f) => !f.ignore)) {
@@ -140,9 +138,8 @@ export const genWorkbookTypedef = (ctx: Context, resolver: TypeResolver) => {
     typeImporter.resolve("TCell");
 
     for (const workbook of ctx.workbooks) {
-        const name = filename(workbook.path);
         for (const sheet of workbook.sheets) {
-            const className = toPascalCase(`${name}_${sheet.name}_Row`);
+            const className = toPascalCase(`${workbook.name}_${sheet.name}_Row`);
 
             // row
             typeBuffer.writeLine(`// file: ${workbook.path}`);

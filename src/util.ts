@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { basename, dirname, extname } from "node:path";
+import { dirname } from "node:path";
 import {
     JsonStringifyOption,
     LuaStringifyOption,
@@ -163,8 +163,4 @@ export const writeTs = (path: string, data: unknown, options?: TsStringifyOption
     options.indent = options.indent ?? 2;
     options.precision = options.precision ?? 10;
     writeFile(path, stringifyTs(data as TValue, options));
-};
-
-export const filename = (path: string, suffix: boolean = false) => {
-    return basename(path, !suffix ? extname(path) : undefined);
 };

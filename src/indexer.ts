@@ -1,7 +1,7 @@
 import { basename } from "path";
 import { StringBuffer } from "./stringify";
 import { TypeImporter, TypeResolver } from "./typedef";
-import { filename, format, keys, toPascalCase } from "./util";
+import { format, keys, toPascalCase } from "./util";
 import { checkType, Context, isNotNull, TCell, TRow, Type, Workbook } from "./xlsx";
 
 /** string '2' and number 2 are considered the same */
@@ -202,20 +202,18 @@ export const genWorkbookIndexer = (ctx: Context, resolver: TypeResolver) => {
     typeImporter.resolve("RowIndexer");
 
     for (const workbook of ctx.workbooks) {
-        const name = filename(workbook.path);
-
-        if (filter[name]) {
+        if (filter[workbook.name]) {
             continue;
         }
-        filter[name] = true;
+        filter[workbook.name] = true;
 
-        const fileClassName = toPascalCase(`${name}_indexer`);
+        const fileClassName = toPascalCase(`${workbook.name}_indexer`);
         const sheets: string[] = [];
         const sheetClasses: string[] = [];
         const rowIndexerBuffer = new StringBuffer(4);
         const colIndexerBuffer = new StringBuffer(4);
         for (const sheet of workbook.sheets) {
-            const className = toPascalCase(`${name}_${sheet.name}_row`);
+            const className = toPascalCase(`${workbook.name}_${sheet.name}_row`);
             typeImporter.resolve(className);
             sheets.push(sheet.name);
             sheetClasses.push(className);
