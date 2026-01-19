@@ -95,12 +95,12 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         indent: option.indent,
         precision: option.precision,
         buffer,
-        writeValue: writeJsonValue,
-        writeArray: writeJsonArray,
-        writeObject: writeJsonObject,
+        writeValue,
+        writeArray,
+        writeObject,
     };
 
-    function writeJsonValue(value: TValue) {
+    function writeValue(value: TValue) {
         if (typeof value === "number") {
             buffer.writeString(numberToString(value, ctx.precision));
         } else if (typeof value === "boolean") {
@@ -114,22 +114,22 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
             buffer.writeString(escape(value));
             buffer.writeString('"');
         } else if (Array.isArray(value)) {
-            writeJsonArray(value);
+            writeArray(value);
         } else {
             if (value["!type"] === Type.Cell) {
                 value = value.v;
             }
             if (typeof value !== "object" || value === null || value === undefined) {
-                writeJsonValue(value);
+                writeValue(value);
             } else if (Array.isArray(value)) {
-                writeJsonArray(value);
+                writeArray(value);
             } else {
-                writeJsonObject(value as TObject);
+                writeObject(value as TObject);
             }
         }
     }
 
-    function writeJsonObject(value: TObject) {
+    function writeObject(value: TObject) {
         if (stacks.length > 256) {
             throw new Error(`json stringify stack overflow: ${stacks.join("->")}`);
         }
@@ -150,7 +150,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
             stacks.push(k);
             buffer.padding();
             buffer.writeString(`"${k}":${space}`);
-            writeJsonValue(v);
+            writeValue(v);
             if (i < ks.length - 1) {
                 buffer.writeString(",");
             }
@@ -162,7 +162,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         buffer.writeString("}");
     }
 
-    function writeJsonArray(value: TArray) {
+    function writeArray(value: TArray) {
         if (value["!stringify"]) {
             value["!stringify"](value, ctx);
             return;
@@ -174,7 +174,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
             buffer.padding();
-            writeJsonValue(v);
+            writeValue(v);
             if (i < value.length - 1) {
                 buffer.writeString(",");
             }
@@ -185,7 +185,7 @@ export const stringifyJson = (data: TValue, option?: JsonStringifyOption) => {
         buffer.writeString("]");
     }
 
-    writeJsonValue(data);
+    writeValue(data);
 
     return buffer.toString();
 };
@@ -212,11 +212,11 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         indent: option.indent,
         precision: option.precision,
         buffer,
-        writeValue: writeLuaValue,
-        writeArray: writeLuaArray,
-        writeObject: writeLuaObject,
+        writeValue,
+        writeArray,
+        writeObject,
     };
-    function writeLuaComment(value?: TValue) {
+    function writeComment(value?: TValue) {
         if (value && typeof value === "object") {
             if (value["!enum"]) {
                 buffer.writeLine(`---@enum ${value["!enum"]}`);
@@ -228,7 +228,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         }
     }
 
-    function writeLuaValue(value: TValue) {
+    function writeValue(value: TValue) {
         if (typeof value === "number") {
             buffer.writeString(numberToString(value, ctx.precision));
         } else if (typeof value === "boolean") {
@@ -240,22 +240,22 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
             buffer.writeString(escape(value));
             buffer.writeString('"');
         } else if (Array.isArray(value)) {
-            writeLuaArray(value);
+            writeArray(value);
         } else {
             if (value["!type"] === Type.Cell) {
                 value = value.v;
             }
             if (typeof value !== "object" || value === null || value === undefined) {
-                writeLuaValue(value);
+                writeValue(value);
             } else if (Array.isArray(value)) {
-                writeLuaArray(value);
+                writeArray(value);
             } else {
-                writeLuaObject(value as TObject);
+                writeObject(value as TObject);
             }
         }
     }
 
-    function writeLuaObject(value: TObject) {
+    function writeObject(value: TObject) {
         if (stacks.length > 256) {
             throw new Error(`json stringify stack overflow: ${stacks.join("->")}`);
         }
@@ -274,7 +274,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
             const k = ks[i];
             const v = value[k];
             stacks.push(k);
-            writeLuaComment(v);
+            writeComment(v);
             buffer.padding();
             if (isNumericKey(k)) {
                 buffer.writeString(`[${k}]${space}=${space}`);
@@ -283,7 +283,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
             } else {
                 buffer.writeString(`["${k}"]${space}=${space}`);
             }
-            writeLuaValue(v);
+            writeValue(v);
             buffer.writeString(",");
             buffer.linefeed();
             stacks.pop();
@@ -293,7 +293,11 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         buffer.writeString("}");
     }
 
-    function writeLuaArray(value: TArray) {
+    function writeArray(value: TArray) {
+        if (stacks.length > 256) {
+            throw new Error(`json stringify stack overflow: ${stacks.join("->")}`);
+        }
+
         if (value["!stringify"]) {
             value["!stringify"](value, ctx);
             return;
@@ -305,7 +309,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
             buffer.padding();
-            writeLuaValue(v);
+            writeValue(v);
             buffer.writeString(",");
             buffer.linefeed();
         }
@@ -318,7 +322,7 @@ export const stringifyLua = (data: TValue, option?: LuaStringifyOption) => {
         buffer.writeString(option.marshal);
     }
 
-    writeLuaValue(data);
+    writeValue(data);
 
     return buffer.toString();
 };
@@ -349,12 +353,12 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         indent: option.indent,
         precision: option.precision,
         buffer,
-        writeValue: writeTsValue,
-        writeArray: writeTsArray,
-        writeObject: writeTsObject,
+        writeValue,
+        writeArray,
+        writeObject,
     };
 
-    function writeTsComment(comment: string | undefined, out: StringBuffer) {
+    function writeComment(comment: string | undefined, out: StringBuffer) {
         if (comment) {
             out.writeLine(`/**`);
             comment.split("\n").forEach((line) => {
@@ -364,7 +368,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         }
     }
 
-    function writeTsEnum(value: TObject) {
+    function writeEnum(value: TObject) {
         const enumName = value["!enum"];
         const enumComment = value["!comment"];
         const ks = keys(value as TObject, isNotNull);
@@ -378,13 +382,13 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         enumBuffer.unindent();
         enumBuffer.writeLine("");
 
-        writeTsComment(enumComment, enumBuffer);
+        writeComment(enumComment, enumBuffer);
         enumBuffer.writeLine(`export enum ${enumName} {`);
         enumBuffer.indent();
         for (const k of ks) {
             const v = checkType<TCell>((value as TObject)[k], Type.Cell);
             const valueComment = v["!comment"];
-            writeTsComment(valueComment, enumBuffer);
+            writeComment(valueComment, enumBuffer);
             if (!k.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/)) {
                 throw new Error(`Invalid enum key: ${k}`);
             }
@@ -399,7 +403,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         enumBuffer.writeLine("");
     }
 
-    function writeTsValue(value: TValue) {
+    function writeValue(value: TValue) {
         if (typeof value === "number") {
             buffer.writeString(numberToString(value, ctx.precision));
         } else if (typeof value === "boolean") {
@@ -411,22 +415,22 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             buffer.writeString(escape(value));
             buffer.writeString('"');
         } else if (Array.isArray(value)) {
-            writeTsArray(value);
+            writeArray(value);
         } else {
             if (value["!type"] === Type.Cell) {
                 value = value.v;
             }
             if (typeof value !== "object" || value === null || value === undefined) {
-                writeTsValue(value);
+                writeValue(value);
             } else if (Array.isArray(value)) {
-                writeTsArray(value);
+                writeArray(value);
             } else {
-                writeTsObject(value as TObject);
+                writeObject(value as TObject);
             }
         }
     }
 
-    function writeTsObject(value: TObject) {
+    function writeObject(value: TObject) {
         if (stacks.length > 256) {
             throw new Error(`json stringify stack overflow: ${stacks.join("->")}`);
         }
@@ -446,10 +450,10 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             const v = value[k];
             if (v && typeof v === "object") {
                 if (v["!enum"]) {
-                    writeTsEnum(v as TObject);
+                    writeEnum(v as TObject);
                     continue;
                 } else if (v["!comment"]) {
-                    writeTsComment(v["!comment"], buffer);
+                    writeComment(v["!comment"], buffer);
                 }
             }
             stacks.push(k);
@@ -459,7 +463,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
             } else {
                 buffer.writeString(`"${k}":${space}`);
             }
-            writeTsValue(v);
+            writeValue(v);
             buffer.writeString(",");
             buffer.linefeed();
             stacks.pop();
@@ -469,7 +473,11 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         buffer.writeString("}");
     }
 
-    function writeTsArray(value: TArray) {
+    function writeArray(value: TArray) {
+        if (stacks.length > 256) {
+            throw new Error(`json stringify stack overflow: ${stacks.join("->")}`);
+        }
+
         if (value["!stringify"]) {
             value["!stringify"](value, ctx);
             return;
@@ -481,7 +489,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
             buffer.padding();
-            writeTsValue(v);
+            writeValue(v);
             buffer.writeString(",");
             buffer.linefeed();
         }
@@ -494,7 +502,7 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         buffer.writeString(option.marshal);
     }
 
-    writeTsValue(data);
+    writeValue(data);
     if (option.asconst) {
         buffer.writeString(" as const;");
     } else {
@@ -506,6 +514,132 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
         buffer.data.unshift("\n");
         buffer.data.unshift(enumString);
     }
+
+    return buffer.toString();
+};
+
+export const stringifyTsType = (data: TValue, option?: TsStringifyOption) => {
+    const stacks: string[] = [];
+    option = option ?? {};
+    option.indent = Math.max(option.indent ?? 4, 0);
+
+    const buffer = new StringBuffer(option.indent);
+    const ctx: StringifyContext = {
+        format: "typedef",
+        indent: option.indent,
+        precision: option.precision,
+        buffer,
+        writeValue,
+        writeArray,
+        writeObject,
+    };
+
+    function writeComment(comment: string | undefined, out: StringBuffer) {
+        if (comment) {
+            out.writeLine(`/**`);
+            comment.split("\n").forEach((line) => {
+                out.writeLine(` * ${line}`);
+            });
+            out.writeLine(` */`);
+        }
+    }
+
+    function writeValue(value: TValue) {
+        if (typeof value === "number") {
+            buffer.writeString("number");
+        } else if (typeof value === "boolean") {
+            buffer.writeString("boolean");
+        } else if (value === null) {
+            buffer.writeString("null");
+        } else if (value === undefined) {
+            buffer.writeString("undefined");
+        } else if (typeof value === "string") {
+            buffer.writeString("string");
+        } else if (Array.isArray(value)) {
+            writeArray(value);
+        } else if (typeof value === "object") {
+            if (value["!type"] === Type.Cell) {
+                value = value.v;
+            }
+            if (typeof value !== "object" || value === null || value === undefined) {
+                writeValue(value);
+            } else if (Array.isArray(value)) {
+                writeArray(value);
+            } else {
+                writeObject(value as TObject);
+            }
+        }
+    }
+
+    function writeObject(value: TObject) {
+        if (stacks.length > 256) {
+            throw new Error(`json stringify stack overflow: ${stacks.join("->")}`);
+        }
+
+        if (value["!stringify"]) {
+            value["!stringify"](value, ctx);
+            return;
+        }
+
+        const ks = keys(value, isNotNull, value["!ignore"]);
+        const space = ctx.indent > 0 ? " " : "";
+        buffer.writeString("{");
+        buffer.linefeed();
+        buffer.indent();
+        for (let i = 0; i < ks.length; i++) {
+            const k = ks[i];
+            const v = value[k];
+            if (v && typeof v === "object") {
+                if (v["!enum"]) {
+                    writeValue(v["!enum"]);
+                    continue;
+                } else if (v["!comment"]) {
+                    writeComment(v["!comment"], buffer);
+                }
+            }
+            stacks.push(k);
+            buffer.padding();
+            if (k.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/) || isNumericKey(k)) {
+                buffer.writeString(`${k}:${space}`);
+            } else {
+                buffer.writeString(`"${k}":${space}`);
+            }
+            writeValue(v);
+            buffer.writeString(";");
+            buffer.linefeed();
+            stacks.pop();
+        }
+        buffer.unindent();
+        buffer.padding();
+        buffer.writeString("}");
+    }
+
+    function writeArray(value: TArray) {
+        if (value["!stringify"]) {
+            value["!stringify"](value, ctx);
+            return;
+        }
+
+        buffer.writeString("[");
+        buffer.linefeed();
+        buffer.indent();
+        for (let i = 0; i < value.length; i++) {
+            const v = value[i];
+            buffer.padding();
+            writeValue(v);
+            buffer.writeString(",");
+            buffer.linefeed();
+        }
+        buffer.unindent();
+        buffer.padding();
+        buffer.writeString("]");
+    }
+
+    if (option.marshal) {
+        buffer.writeString(option.marshal);
+    }
+
+    writeValue(data);
 
     return buffer.toString();
 };

@@ -49,34 +49,4 @@ return {
         -- 兑换任务
         EXCHANGE = 7,
     },
-    TaskTypeOptions = {
-        {
-            name = "主线任务(MAIN)",
-            value = 1,
-        },
-        {
-            name = "支线任务(BRANCH)",
-            value = 2,
-        },
-        {
-            name = "日常任务(DAILY)",
-            value = 3,
-        },
-        {
-            name = "周常任务(WEEKLY)",
-            value = 4,
-        },
-        {
-            name = "活动任务(EVENTS)",
-            value = 5,
-        },
-        {
-            name = "xx任务(PASSES)",
-            value = 6,
-        },
-        {
-            name = "兑换任务(EXCHANGE)",
-            value = 7,
-        },
-    },
 }

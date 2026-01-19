@@ -76,15 +76,8 @@ export const StringifyProcessor: Processor = async (
     }
 };
 
-export const DefineProcessor: Processor = async (
-    workbook: Workbook,
-    sheet: Sheet,
-    name?: string
-) => {
+export const DefineProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
     const data = defineSheet(workbook, sheet);
-    if (name) {
-        data["!name"] = name;
-    }
     write(workbook, "define", data);
     sheet.data = {};
     sheet.ignore = true;
@@ -164,10 +157,9 @@ export const AutoRegisterProcessor: Processor = async (workbook: Workbook) => {
 
                 if (!convertors[enumName]) {
                     registerType(enumName, (str) => typeKeys[str]);
-                    registerChecker(
-                        enumName,
-                        () => (cell) => typeValues[cell.v as string] !== undefined
-                    );
+                    registerChecker(enumName, () => {
+                        return ({ cell }) => typeValues[cell.v as string] !== undefined;
+                    });
                 }
             }
         }

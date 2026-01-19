@@ -3,6 +3,7 @@ import {
     FollowCheckerParser,
     IndexCheckerParser,
     RangeCheckerParser,
+    ReferCheckerParser,
     SheetCheckerParser,
     SizeCheckerParser,
 } from "./src/checker";
@@ -27,15 +28,7 @@ import {
     TypedefProcessor,
 } from "./src/processor";
 import { tableConvertor } from "./src/table";
-import {
-    EXPR_CHECKER,
-    INDEX_CHECKER,
-    RANGE_CHECKER,
-    registerChecker,
-    registerProcessor,
-    registerType,
-    SHEET_CHECKER,
-} from "./src/xlsx";
+import { BuiltinChecker, registerChecker, registerProcessor, registerType } from "./src/xlsx";
 
 export * from "./src/checker";
 export * from "./src/convertor";
@@ -56,12 +49,13 @@ registerType("float", floatConvertor);
 registerType("json", jsonConvertor);
 registerType("table", tableConvertor);
 
-registerChecker("size", SizeCheckerParser);
-registerChecker("follow", FollowCheckerParser);
-registerChecker(EXPR_CHECKER, ExprCheckerParser);
-registerChecker(RANGE_CHECKER, RangeCheckerParser);
-registerChecker(INDEX_CHECKER, IndexCheckerParser);
-registerChecker(SHEET_CHECKER, SheetCheckerParser);
+registerChecker(BuiltinChecker.Size, SizeCheckerParser);
+registerChecker(BuiltinChecker.Refer, ReferCheckerParser);
+registerChecker(BuiltinChecker.Follow, FollowCheckerParser);
+registerChecker(BuiltinChecker.Expr, ExprCheckerParser);
+registerChecker(BuiltinChecker.Range, RangeCheckerParser);
+registerChecker(BuiltinChecker.Index, IndexCheckerParser);
+registerChecker(BuiltinChecker.Sheet, SheetCheckerParser);
 
 registerProcessor("define", DefineProcessor, { stage: "pre-stringify" });
 registerProcessor("config", ConfigProcessor, { stage: "pre-stringify", priority: 800 });

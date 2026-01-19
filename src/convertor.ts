@@ -16,6 +16,9 @@ export const boolConvertor: Convertor = (str) => {
 };
 
 export const intConvertor: Convertor = (str) => {
+    if (str === "") {
+        return null;
+    }
     const result = Number(str);
     if (isNaN(result) || result !== (result | 0)) {
         return null;
@@ -28,6 +31,9 @@ export const stringConvertor: Convertor = (str) => {
 };
 
 export const floatConvertor: Convertor = (str) => {
+    if (str === "") {
+        return null;
+    }
     const result = Number(str);
     if (isNaN(result)) {
         return null;

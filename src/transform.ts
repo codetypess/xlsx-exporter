@@ -3,7 +3,6 @@ import { values } from "./util";
 import {
     Sheet,
     TArray,
-    TCell,
     TObject,
     TRow,
     TValue,
@@ -20,7 +19,6 @@ export const defineSheet = (workbook: Workbook, sheet: Sheet) => {
     checkType(sheet.data, Type.Sheet);
 
     const config: TObject = {};
-    const enumOptions: TObject[] = [];
 
     config["!name"] = `${workbook.name}.${sheet.name}`;
     config["!type"] = Type.Define;
@@ -67,42 +65,9 @@ export const defineSheet = (workbook: Workbook, sheet: Sheet) => {
                         t["!comment"] = comment;
                     }
                 }
-                if (row["enum_option"]?.v && t["!enum"]) {
-                    enumOptions.push(t);
-                }
                 break;
             }
         }
-    }
-
-    for (const entry of enumOptions) {
-        const enumName = entry["!enum"];
-        const options: { name: string; value: unknown; desc: unknown }[] = [];
-        for (const k of Object.keys(entry).filter((v) => !v.startsWith("!"))) {
-            const v = entry[k] as TCell;
-            const comment = v["!comment"] ?? "";
-            let name: string, desc: string | undefined;
-            if (comment.includes("-")) {
-                [name, desc] = comment.split("-", 2);
-            } else {
-                name = comment;
-            }
-            if (!name) {
-                name = k;
-            }
-            options.push({
-                name: `${name}(${k})`,
-                value: v.v,
-                desc: desc,
-            });
-        }
-        options.sort((a, b) => {
-            if (typeof a.value === "number" && typeof b.value === "number") {
-                return a.value - b.value;
-            }
-            return String(a.value).localeCompare(String(b.value));
-        });
-        config[`${enumName}Options`] = options as TArray;
     }
 
     return config;

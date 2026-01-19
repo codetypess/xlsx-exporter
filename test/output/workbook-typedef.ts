@@ -15,14 +15,14 @@ type TCell = Omit<_TCell, "v">;
 
 // file: test/res/item.xlsx
 // processors:
+//  - @auto-register
 //  - @define
+//  - @post_stringify
 //  - @stringify
 //  - @typedef
-//  - @auto-register
-//  - @post_stringify
-//  - @workbook-typedef
-//  - @workbook-indexer
 //  - @validate-json
+//  - @workbook-indexer
+//  - @workbook-typedef
 export interface ItemDefineRow {
     /**
      * ### (location: A2) (type: auto) (checker: x) (writer: client|server)
@@ -318,14 +318,14 @@ export interface TaskConfRow {
 
 // file: test/res/task.xlsx
 // processors:
+//  - @auto-register
 //  - @define
+//  - @post_stringify
 //  - @stringify(task)
 //  - @typedef
-//  - @auto-register
-//  - @post_stringify
-//  - @workbook-typedef
-//  - @workbook-indexer
 //  - @validate-json
+//  - @workbook-indexer
+//  - @workbook-typedef
 export interface TaskDefineRow {
     /**
      * ### (location: A2) (type: auto) (checker: x) (writer: client|server)

@@ -3,11 +3,6 @@ import xlsx from "xlsx";
 import { type StringifyContext } from "./stringify";
 import { keys, values } from "./util";
 
-export const RANGE_CHECKER = "xlsx.checker.range";
-export const INDEX_CHECKER = "xlsx.checker.index";
-export const EXPR_CHECKER = "xlsx.checker.expr";
-export const SHEET_CHECKER = "xlsx.checker.sheet";
-
 export const enum Type {
     Row = "xlsx.type.row",
     Cell = "xlsx.type.cell",
@@ -53,20 +48,17 @@ export type TRow = { [k: string]: TCell } & Tag;
 export type Field = {
     readonly index: number;
     readonly name: string;
-    readonly sheet: string;
-    readonly path: string;
     readonly typename: string;
     readonly writers: string[];
-    readonly checker: CheckerType[];
+    readonly checkers: CheckerType[];
     readonly comment: string;
-    readonly refer: string;
+    readonly location: string;
     realtype?: string;
     ignore: boolean;
 };
 
 export type Sheet = {
     readonly name: string;
-    readonly path: string;
     readonly processors: { name: string; args: string[] }[];
     readonly fields: Field[];
     ignore: boolean;
@@ -141,7 +133,6 @@ export class Workbook {
             if (includeWriters(sheet.fields[0].writers)) {
                 const newSheet: Sheet = {
                     name: sheet.name,
-                    path: sheet.path,
                     ignore: sheet.ignore,
                     processors: structuredClone(sheet.processors),
                     fields: structuredClone(sheet.fields).filter((f) => includeWriters(f.writers)),
@@ -210,15 +201,33 @@ export class Context {
     }
 }
 
+export type CheckerContext = {
+    workbook: Workbook;
+    sheet: Sheet;
+    cell: TCell;
+    row: TRow;
+    field: Field;
+    errors: string[];
+};
+export const enum BuiltinChecker {
+    Refer = "refer",
+    Size = "size",
+    Follow = "follow",
+    Range = "xlsx.checker.range",
+    Index = "xlsx.checker.index",
+    Expr = "xlsx.checker.expr",
+    Sheet = "xlsx.checker.sheet",
+}
 export type Convertor = (str: string) => TValue;
-export type Checker = (cell: TCell, row: TObject, field: Field, errors: string[]) => boolean;
+export type Checker = (ctx: CheckerContext) => boolean;
 export type CheckerParser = (ctx: Context, ...args: string[]) => Checker;
 type CheckerType = {
     readonly name: string;
     readonly force: boolean;
     readonly source: string;
     readonly args: string[];
-    readonly refer: string;
+    readonly location: string;
+    readonly refers: Record<string, CheckerType[]>;
     exec: Checker;
 };
 
@@ -347,7 +356,7 @@ export const toString = (cell?: TCell) => {
     return String(cell.v);
 };
 
-const toRef = (col: number, row: number) => {
+const toLocation = (col: number, row: number) => {
     const COLUMN = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let ret = "";
     while (true) {
@@ -560,7 +569,7 @@ const makeFilePath = (path: string) => (path.endsWith(".xlsx") ? path : path + "
 export const parseChecker = (
     rowFile: string,
     rowSheet: string,
-    refer: string,
+    location: string,
     index: number,
     str: string
 ) => {
@@ -568,7 +577,7 @@ export const parseChecker = (
         return [];
     }
     if (str.trim() === "") {
-        error(`No checker defined at ${refer}`);
+        error(`No checker defined at ${location}`);
     }
     return str
         .split(/[;\n\r]+/)
@@ -579,7 +588,7 @@ export const parseChecker = (
             if (force) {
                 s = s.slice(1);
             }
-            using _ = doing(`Parsing checker at ${refer}: '${s}'`);
+            using _ = doing(`Parsing checker at ${location}: '${s}'`);
             let checker: CheckerType | undefined;
             if (s.startsWith("@")) {
                 /**
@@ -591,8 +600,9 @@ export const parseChecker = (
                     name,
                     force,
                     source: s,
-                    refer,
+                    location,
                     args: arg.split(",").map((a) => a.trim()),
+                    refers: {},
                     exec: null!,
                 };
             } else if (s.startsWith("[") && s.endsWith("]")) {
@@ -600,11 +610,12 @@ export const parseChecker = (
                  * [0, 1, "a", "b", "c", ...]
                  */
                 checker = {
-                    name: RANGE_CHECKER,
+                    name: BuiltinChecker.Range,
                     force,
                     source: s,
-                    refer,
+                    location,
                     args: [s],
+                    refers: {},
                     exec: null!,
                 };
             } else if (s.endsWith("#")) {
@@ -615,11 +626,12 @@ export const parseChecker = (
                 const [, rowKey = "", rowFilter = "", colFile = ""] =
                     s.match(/^(?:\$([^&]*)?(?:&(.+))?==)?([^#]*)#$/) ?? [];
                 checker = {
-                    name: SHEET_CHECKER,
+                    name: BuiltinChecker.Sheet,
                     force,
                     source: s,
-                    refer,
+                    location,
                     args: [rowFile, rowSheet, rowKey, rowFilter, makeFilePath(colFile || rowFile)],
+                    refers: {},
                     exec: null!,
                 };
             } else if (s.includes("#")) {
@@ -639,13 +651,13 @@ export const parseChecker = (
                     colFilter = "",
                 ] = s.match(/^(?:\$([^&]*)?(?:&(.+))?==)?([^#=]*)#([^.]+)\.(\w+)(?:&(.+))?$/) ?? [];
                 if (!colSheet || !colKey) {
-                    error(`Invalid index checker at ${refer}: '${s}'`);
+                    error(`Invalid index checker at ${location}: '${s}'`);
                 }
                 checker = {
-                    name: INDEX_CHECKER,
+                    name: BuiltinChecker.Index,
                     force,
                     source: s,
-                    refer,
+                    location,
                     args: [
                         rowFile,
                         rowSheet,
@@ -656,6 +668,7 @@ export const parseChecker = (
                         colKey,
                         colFilter,
                     ],
+                    refers: {},
                     exec: null!,
                 };
             } else if (s !== "x") {
@@ -663,11 +676,12 @@ export const parseChecker = (
                  * value >= 0 && value <= 100
                  */
                 checker = {
-                    name: EXPR_CHECKER,
+                    name: BuiltinChecker.Expr,
                     force,
                     source: s,
-                    refer,
+                    location,
                     args: [s],
+                    refers: {},
                     exec: null!,
                 };
             }
@@ -679,7 +693,7 @@ export const parseChecker = (
 const readCell = (sheetData: xlsx.WorkSheet, r: number, c: number) => {
     const cell: TCell = sheetData[r]?.[c] ?? {};
     cell.v = typeof cell.v === "string" ? cell.v.trim() : (cell.v ?? "");
-    cell.r = toRef(c, r);
+    cell.r = toLocation(c, r);
     cell.t = undefined;
     cell["!type"] = Type.Cell;
     return cell;
@@ -715,7 +729,6 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
 
         const sheet: Sheet = {
             name: sheetName,
-            path: path,
             ignore: false,
             processors: [],
             fields: [],
@@ -758,30 +771,28 @@ const readHeader = (path: string, data: xlsx.WorkBook) => {
                     .filter((w) => w)
                     .map((w) => {
                         if (!writerKeys.includes(w)) {
-                            error(`Writer not found: '${w}' at ${toRef(c, r + 2)}`);
+                            error(`Writer not found: '${w}' at ${toLocation(c, r + 2)}`);
                         }
                         return w;
                     });
                 if (parsed[name]) {
-                    error(`Duplicate field name: '${name}' at ${toRef(c, r)}`);
+                    error(`Duplicate field name: '${name}' at ${toLocation(c, r)}`);
                 }
                 parsed[name] = true;
                 sheet.fields.push({
-                    path,
-                    sheet: sheetName,
                     index: c,
                     name,
                     typename,
                     writers: arr.length ? arr : writerKeys.slice(),
-                    checker: parseChecker(
+                    checkers: parseChecker(
                         basename(path),
                         sheetName,
-                        `${toRef(c, r + 3)}`,
+                        `${toLocation(c, r + 3)}`,
                         c,
                         checker
                     ),
                     comment,
-                    refer: toRef(c, r),
+                    location: toLocation(c, r),
                     ignore: false,
                 });
             }
@@ -827,6 +838,20 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
                 break;
             }
         }
+        const refers: Record<string, { checker: CheckerType; field: Field }> = {};
+        for (const field of sheet.fields) {
+            for (const checker of field.checkers) {
+                if (checker.name === BuiltinChecker.Refer) {
+                    const name = checker.args[0];
+                    const referField = sheet.fields.find((f) => f.name === name);
+                    if (!referField) {
+                        error(`Refer field not found: ${name} at ${checker.location}`);
+                    }
+                    referField.ignore = true;
+                    refers[name] = { checker, field };
+                }
+            }
+        }
         for (let r = start; r < maxRows; r++) {
             const row: TRow = {};
             row["!type"] = Type.Row;
@@ -834,7 +859,7 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
                 const cell: TCell = readCell(sheetData, r, field.index);
                 if (field.typename === "auto") {
                     if (cell.v !== "-") {
-                        error(`Expected '-' at ${toRef(0, r)}, but got '${cell.v}'`);
+                        error(`Expected '-' at ${toLocation(0, r)}, but got '${cell.v}'`);
                     }
                     cell.v = r - start + 1;
                 }
@@ -849,8 +874,19 @@ const readBody = (path: string, data: xlsx.WorkBook) => {
                     const typename = field.typename.slice(1);
                     const refField = sheet.fields.find((f) => f.name === typename);
                     ignoreField(row, typename, true);
-                    assert(refField, `Type field not found: ${typename} at ${field.refer}`);
+                    assert(refField, `Type field not found: ${typename} at ${field.location}`);
                     refField.ignore = true;
+                }
+
+                const refer = refers[field.name];
+                if (refer && cell.v) {
+                    refer.checker.refers[toLocation(refer.field.index, r)] = parseChecker(
+                        basename(workbook.path),
+                        sheet.name,
+                        cell.r,
+                        field.index,
+                        toString(cell)
+                    );
                 }
             }
         }
@@ -867,15 +903,23 @@ const resolveChecker = () => {
             for (const sheet of workbook.sheets) {
                 using _ = doing(`Resolving checker in '${workbook.path}#${sheet.name}'`);
                 for (const field of sheet.fields) {
-                    for (const checker of field.checker) {
+                    const checkers = field.checkers.slice();
+                    field.checkers.forEach((v) => {
+                        if (v.name === BuiltinChecker.Refer) {
+                            checkers.push(...Object.values(v.refers).flat());
+                        }
+                    });
+                    for (const checker of checkers) {
                         const parser = checkerParsers[checker.name];
                         if (!parser) {
                             error(
-                                `Checker parser not found at ${checker.refer}: '${checker.name}'`
+                                `Checker parser not found at ${checker.location}: '${checker.name}'`
                             );
                         }
-                        using __ = doing(`Parsing checker at ${checker.refer}: ${checker.source}`);
-                        assert(!checker.exec, `Checker already parsed: ${checker.refer}`);
+                        using __ = doing(
+                            `Parsing checker at ${checker.location}: ${checker.source}`
+                        );
+                        assert(!checker.exec, `Checker already parsed: ${checker.location}`);
                         checker.exec = parser(ctx, ...checker.args);
                     }
                 }
@@ -942,21 +986,71 @@ const copyWorkbook = () => {
     }
 };
 
-const invokeChecker = (sheet: Sheet, field: Field, errors: string[]) => {
-    const checkers = field.checker.filter((c) => !options.suppressCheckers.includes(c.name));
+const invokeReferChecker = (
+    ctx: CheckerContext,
+    cell: TCell,
+    checkers: CheckerType[],
+    errors: string[]
+) => {
     for (const checker of checkers) {
         const errorValues: string[] = [];
-        const errorDescs: string[] = [];
+        if ((cell.v !== null || checker.force) && !checker.exec(ctx)) {
+            errorValues.push(`${cell.r}: ${cell.s}`);
+            if (ctx.errors.length > 0) {
+                for (const str of ctx.errors) {
+                    errorValues.push("    ❌ " + str);
+                }
+                ctx.errors.length = 0;
+            }
+        }
+        if (errorValues.length > 0) {
+            if (errorValues.length > MAX_ERRORS) {
+                errorValues.length = MAX_ERRORS;
+                errorValues.push("...");
+            }
+            errors.push(
+                `builtin check:\n` +
+                    `     path: ${ctx.workbook.path}\n` +
+                    `    sheet: ${ctx.sheet.name}\n` +
+                    `    field: ${ctx.field.name}\n` +
+                    `  checker: ${checker.source}\n` +
+                    `   values:\n` +
+                    `      ${errorValues.join("\n      ")}\n`
+            );
+        }
+    }
+};
+
+const invokeChecker = (workbook: Workbook, sheet: Sheet, field: Field, errors: string[]) => {
+    const checkers = field.checkers.filter((c) => !options.suppressCheckers.includes(c.name));
+    const ctx: CheckerContext = {
+        workbook,
+        sheet,
+        field,
+        errors: [],
+        cell: null!,
+        row: null!,
+    };
+    for (const checker of checkers) {
+        const errorValues: string[] = [];
         for (const row of values<TRow>(sheet.data)) {
             const cell = row[field.name];
             checkType(cell, Type.Cell);
-            if ((cell.v !== null || checker.force) && !checker.exec(cell, row, field, errorDescs)) {
+            ctx.cell = cell;
+            ctx.row = row;
+            if ((cell.v !== null || checker.force) && !checker.exec(ctx)) {
                 errorValues.push(`${cell.r}: ${cell.s}`);
-                if (errorDescs.length > 0) {
-                    for (const str of errorDescs) {
+                if (ctx.errors.length > 0) {
+                    for (const str of ctx.errors) {
                         errorValues.push("    ❌ " + str);
                     }
-                    errorDescs.length = 0;
+                    ctx.errors.length = 0;
+                }
+            }
+            if (checker.name === BuiltinChecker.Refer) {
+                const refers = checker.refers[cell.r];
+                if (refers) {
+                    invokeReferChecker(ctx, cell, refers, errors);
                 }
             }
         }
@@ -967,8 +1061,8 @@ const invokeChecker = (sheet: Sheet, field: Field, errors: string[]) => {
             }
             errors.push(
                 `builtin check:\n` +
-                    `     path: ${field.path}\n` +
-                    `    sheet: ${field.sheet}\n` +
+                    `     path: ${workbook.path}\n` +
+                    `    sheet: ${sheet.name}\n` +
                     `    field: ${field.name}\n` +
                     `  checker: ${checker.source}\n` +
                     `   values:\n` +
@@ -989,10 +1083,10 @@ const performChecker = () => {
         for (const workbook of ctx.workbooks) {
             for (const sheet of workbook.sheets) {
                 for (const field of sheet.fields) {
-                    const msg = `'${field.name}' at ${field.refer} in '${workbook.path}#${sheet.name}'`;
+                    const msg = `'${field.name}' at ${field.location} in '${workbook.path}#${sheet.name}'`;
                     using _ = doing(`Checking ${msg}`);
                     try {
-                        invokeChecker(sheet, field, errors);
+                        invokeChecker(workbook, sheet, field, errors);
                     } catch (e) {
                         error((e as Error).stack ?? String(e));
                     }
@@ -1000,7 +1094,7 @@ const performChecker = () => {
             }
         }
         if (errors.length > 0) {
-            throw new Error(errors.join("\n"));
+            throw new Error(`tag: ${ctx.tag}\n` + errors.join("\n"));
         }
     }
 };

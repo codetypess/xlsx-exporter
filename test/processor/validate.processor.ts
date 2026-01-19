@@ -173,7 +173,7 @@ const genSchema = () => {
         md5Json[v.input] = calcFileMd5(v.input);
         md5Json[v.output] = calcFileMd5(v.output);
         xlsx.writeJson(md5Path, md5Json);
-        console.log(`ts-to-zod ${v.input} ${v.output}, ${ret.toString().trim()}`);
+        console.log(`ts-to-zod ${v.input} ${v.output} ${ret.toString().trim()}`);
     }
 };
 

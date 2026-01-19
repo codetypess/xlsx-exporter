@@ -7,7 +7,7 @@ export const SizeCheckerParser: CheckerParser = (ctx, arg) => {
     if (isNaN(length)) {
         throw new Error(`Invalid length: '${length}'`);
     }
-    return (cell, row, field, errors) => {
+    return ({ cell }) => {
         if (cell.v instanceof Array) {
             return cell.v.length === length;
         }
@@ -26,7 +26,7 @@ export const ExprCheckerParser: CheckerParser = (ctx, expr) => {
         })
         .join("");
     const check = new Function("$", "return " + expr);
-    return (cell, row, field, errors) => {
+    return ({ cell, row, errors }) => {
         try {
             return check.call(row, cell.v);
         } catch (e) {
@@ -37,7 +37,7 @@ export const ExprCheckerParser: CheckerParser = (ctx, expr) => {
 };
 
 export const FollowCheckerParser: CheckerParser = (ctx, arg) => {
-    return (cell, row, field, errors) => {
+    return ({ cell, row }) => {
         const follow = row[arg] as TCell;
         if (follow.v !== null) {
             return cell.v !== null;
@@ -54,7 +54,7 @@ export const RangeCheckerParser: CheckerParser = (ctx, arg) => {
     } catch (e) {
         throw new Error(`Invalid range: '${arg}'`);
     }
-    return (cell, row, field, errors) => {
+    return ({ cell }) => {
         return values.includes(cell.v);
     };
 };
@@ -225,9 +225,9 @@ export const IndexCheckerParser: CheckerParser = (
     );
     const indexer = new ColumnIndexer(ctx, colFile, colSheet, ast.target.key);
 
-    return (cell, row, field, errors) => {
+    return ({ cell, row, field, errors, workbook, sheet }) => {
         if (cell.v === null || cell.v === undefined) {
-            throw new Error(`Invalid value at ${cell.r} in ${field.path}#${field.sheet}`);
+            throw new Error(`Invalid value at ${cell.r} in ${workbook.path}#${sheet.name}`);
         }
 
         if (ast.value.filter.length > 0) {
@@ -236,7 +236,7 @@ export const IndexCheckerParser: CheckerParser = (
                 const rowCell = row[entry.key] as TCell | undefined;
                 if (!rowCell) {
                     throw new Error(
-                        `field '${entry.key}' not found in ${field.path}#${field.sheet}`
+                        `field '${entry.key}' not found in ${workbook.path}#${sheet.name}`
                     );
                 }
                 if (rowCell.v !== entry.value) {
@@ -270,10 +270,16 @@ export const SheetCheckerParser: CheckerParser = (
     );
     const path = file.replace(/\.xlsx$/, "") + ".xlsx";
     const target = ctx.get(path);
-    return (cell, row, field, errors) => {
+    return ({ cell, errors }) => {
         return ast.value.resolve(cell.v, errors, (value) => {
             const sheet = target.get(value as string);
             return sheet !== undefined;
         });
+    };
+};
+
+export const ReferCheckerParser: CheckerParser = (ctx, arg) => {
+    return ({ cell, row, field, errors }) => {
+        return true;
     };
 };

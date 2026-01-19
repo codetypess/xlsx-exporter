@@ -13,7 +13,8 @@ export class TypeImporter {
 
     resolve(typename: string) {
         const ret = this.resolver(typename);
-        if (ret.path && !basicTypes.includes(ret.type)) {
+        const basic = ret.type.match(/^[a-zA-Z_][a-zA-Z0-9_]+/)?.[0] ?? "";
+        if (ret.path && !basicTypes.includes(basic)) {
             this._namedTypes[ret.path] ||= new Set();
             this._namedTypes[ret.path].add(ret.type);
         }
@@ -50,11 +51,11 @@ export const genTsTypedef = (workbook: Workbook, resolver: TypeResolver) => {
         typeBuffer.writeLine(`export interface ${className} {`);
         typeBuffer.indent();
         for (const field of sheet.fields.filter((f) => !f.ignore)) {
-            const checker = field.checker.map((v) => v.source).join(";");
+            const checker = field.checkers.map((v) => v.source).join(";");
             const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
             typeBuffer.writeLine(`/**`);
             typeBuffer.writeLine(
-                ` * ${comment} (location: ${field.refer}) (checker: ${checker || "x"})`
+                ` * ${comment} (location: ${field.location}) (checker: ${checker || "x"})`
             );
             typeBuffer.writeLine(` */`);
             let typename = field.realtype ?? field.typename;
@@ -145,7 +146,10 @@ export const genWorkbookTypedef = (ctx: Context, resolver: TypeResolver) => {
             typeBuffer.writeLine(`// file: ${workbook.path}`);
             if (sheet.processors.length > 0) {
                 typeBuffer.writeLine(`// processors:`);
-                for (const p of sheet.processors) {
+                const processors = sheet.processors
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                for (const p of processors) {
                     typeBuffer.writeString(`//  - @${p.name}`);
                     if (p.args.length > 0) {
                         typeBuffer.writeString(`(${p.args.join(", ")})`);
@@ -159,7 +163,7 @@ export const genWorkbookTypedef = (ctx: Context, resolver: TypeResolver) => {
                 if (field.name.startsWith("--")) {
                     continue;
                 }
-                const checker = field.checker.map((v) => v.source).join(";");
+                const checker = field.checkers.map((v) => v.source).join(";");
                 const optional = field.typename.endsWith("?") ? "?" : "";
                 const comment = field.comment.replaceAll(/[\r\n]+/g, " ");
                 const array = field.typename.match(/[[\]]+/)?.[0] ?? "";
@@ -167,12 +171,12 @@ export const genWorkbookTypedef = (ctx: Context, resolver: TypeResolver) => {
                 if (typename.startsWith("@")) {
                     typename = "unknown";
                 } else if (!convertors[typename]) {
-                    const where = `file: ${workbook.path}#${sheet.name}#${field.refer}:${field.name}`;
+                    const where = `file: ${workbook.path}#${sheet.name}#${field.location}:${field.name}`;
                     throw new Error(`convertor not found: ${typename} (${where})`);
                 }
                 typeBuffer.writeLine(`/**`);
                 typeBuffer.writeLine(
-                    ` * ${comment} (location: ${field.refer}) (type: ${field.typename}) ` +
+                    ` * ${comment} (location: ${field.location}) (type: ${field.typename}) ` +
                         `(checker: ${checker.replaceAll("@", "\\@") || "x"}) ` +
                         `(writer: ${field.writers.join("|")})`
                 );
