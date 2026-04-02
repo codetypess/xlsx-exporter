@@ -1,0 +1,4 @@
+interface:
+  display_name: "FastXLSX Agent"
+  short_description: "Inspect, sync, and patch XLSX via CLI"
+  default_prompt: "Use $xlsx-agent to inspect, sync, or patch an XLSX workbook with the available fastxlsx CLI entry."
