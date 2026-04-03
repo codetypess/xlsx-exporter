@@ -8,6 +8,7 @@ import {
     ItemType,
     Items,
     QualityType,
+    TaskArgs,
     TaskType,
 } from "./client/define/index.js";
 
@@ -543,6 +544,60 @@ export interface TaskWeeklyRow {
      * 任务icon (location: I1) (type: string) (checker: x) (writer: client)
      */
     icon: { v: string } & TCell;
+}
+
+// file: test/res/typedef.xlsx
+export interface TypedefMainRow {
+    /**
+     * ### (location: A1) (type: int) (checker: x) (writer: client|server)
+     */
+    id: { v: number } & TCell;
+    /**
+     * 条件 (location: C1) (type: string) (checker: x) (writer: client|server)
+     */
+    condition: { v: string } & TCell;
+    /**
+     * 参数 (location: D1) (type: TaskArgs) (checker: x) (writer: client|server)
+     */
+    args: { v: TaskArgs } & TCell;
+}
+
+// file: test/res/typedef.xlsx
+// processors:
+//  - @auto-register
+//  - @gen-type
+//  - @post_stringify
+//  - @stringify
+//  - @typedef
+//  - @typedef-write
+//  - @validate-json
+//  - @workbook-indexer
+//  - @workbook-typedef
+export interface TypedefTypedefRow {
+    /**
+     * ### (location: A2) (type: auto) (checker: x) (writer: client|server)
+     */
+    id: { v: number } & TCell;
+    /**
+     * 注释 (location: B2) (type: string?) (checker: x) (writer: client|server)
+     */
+    comment: { v?: string } & TCell;
+    /**
+     *  (location: C2) (type: string) (checker: x) (writer: client|server)
+     */
+    key1: { v: string } & TCell;
+    /**
+     *  (location: D2) (type: string?) (checker: x) (writer: client|server)
+     */
+    key2: { v?: string } & TCell;
+    /**
+     *  (location: E2) (type: string) (checker: x) (writer: client|server)
+     */
+    value_type: { v: string } & TCell;
+    /**
+     * 注释 (location: F2) (type: string?) (checker: x) (writer: client|server)
+     */
+    value_comment: { v?: string } & TCell;
 }
 
 

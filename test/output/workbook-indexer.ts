@@ -20,6 +20,8 @@ import {
     TaskExchangeRow,
     TaskMainRow,
     TaskWeeklyRow,
+    TypedefMainRow,
+    TypedefTypedefRow,
 } from "./workbook-typedef.js";
 
 type Filter<T> = (row: T) => boolean;
@@ -114,6 +116,22 @@ export class TaskIndexer {
     static getColumnIndexer(ctx: Context, sheet: "weekly", field: keyof TaskWeeklyRow, filter?: Filter<TaskWeeklyRow>): ColumnIndexer<TaskWeeklyRow>;
     static getColumnIndexer(ctx: Context, sheet: "branch" | "conf" | "define" | "events" | "exchange" | "main" | "weekly", field: string, filter?: Filter<TaskBranchRow> | Filter<TaskConfRow> | Filter<TaskDefineRow> | Filter<TaskEventsRow> | Filter<TaskExchangeRow> | Filter<TaskMainRow> | Filter<TaskWeeklyRow>): unknown {
         return createColumnIndexer(ctx, "task.xlsx", sheet, field, filter as Filter<unknown>);
+    }
+    
+}
+
+// file: test/res/typedef.xlsx
+export class TypedefIndexer {
+    static getRowIndexer(ctx: Context, sheet: "main", filter?: Filter<TypedefMainRow>): RowIndexer<TypedefMainRow>;
+    static getRowIndexer(ctx: Context, sheet: "typedef", filter?: Filter<TypedefTypedefRow>): RowIndexer<TypedefTypedefRow>;
+    static getRowIndexer(ctx: Context, sheet: "main" | "typedef", filter?: Filter<TypedefMainRow> | Filter<TypedefTypedefRow>): unknown {
+        return createRowIndexer(ctx, "typedef.xlsx", sheet, filter as Filter<unknown>);
+    }
+    
+    static getColumnIndexer(ctx: Context, sheet: "main", field: keyof TypedefMainRow, filter?: Filter<TypedefMainRow>): ColumnIndexer<TypedefMainRow>;
+    static getColumnIndexer(ctx: Context, sheet: "typedef", field: keyof TypedefTypedefRow, filter?: Filter<TypedefTypedefRow>): ColumnIndexer<TypedefTypedefRow>;
+    static getColumnIndexer(ctx: Context, sheet: "main" | "typedef", field: string, filter?: Filter<TypedefMainRow> | Filter<TypedefTypedefRow>): unknown {
+        return createColumnIndexer(ctx, "typedef.xlsx", sheet, field, filter as Filter<unknown>);
     }
     
 }

@@ -1,5 +1,5 @@
 // AUTO GENERATED DO NOT MODIFY!
-// MERGED FROM build/client/types/item.ts AND test/output/client/types/item.ts
+// MERGED FROM build/client/types/item.xlsx.ts AND test/output/client/types/item.xlsx.ts
 
 import {
     BagType,
@@ -167,7 +167,4 @@ export interface GeneratedItemTable {
     item: Record<number | string, GeneratedItemItemRow>;
     follow: Record<number | string, GeneratedItemFollowRow>;
     map: Record<number | string, Record<number | string, GeneratedItemMapRow>>;
-    // map_arr: Record<number | string, GeneratedItemMapArrRow>;
-    // map_field: Record<number | string, GeneratedItemMapFieldRow>;
-    // map_obj: Record<number | string, GeneratedItemMapObjRow>;
 }

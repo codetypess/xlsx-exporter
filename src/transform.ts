@@ -1,4 +1,10 @@
 import { RowIndexer } from "./indexer.js";
+import {
+    TypedefField,
+    TypedefObject,
+    TypedefUnion,
+    TypedefWorkbook,
+} from "./typedef.js";
 import { values } from "./util.js";
 import {
     Sheet,
@@ -10,6 +16,7 @@ import {
     Workbook,
     assert,
     checkType,
+    convertors,
     convertValue,
     isNotNull,
     toString,
@@ -100,6 +107,269 @@ export const configSheet = (
         result[key] = value;
     }
     return result;
+};
+
+type TypedefDraftField = {
+    readonly name: string;
+    readonly comment: string;
+    readonly rawType: string;
+};
+
+type TypedefDraftObject = {
+    kind: "object";
+    name: string;
+    comment: string;
+    fields: TypedefDraftField[];
+};
+
+type TypedefDraftUnion = {
+    kind: "union";
+    name: string;
+    comment: string;
+    discriminator: string;
+    members: string[];
+};
+
+type TypedefDraft = TypedefDraftObject | TypedefDraftUnion;
+
+const splitTypename = (typename: string) => {
+    const optional = typename.endsWith("?");
+    const clean = optional ? typename.slice(0, -1) : typename;
+    const array = clean.match(/(?:\[\d*\])+$/)?.[0].replace(/\d+/g, "") ?? "";
+    const base = clean.slice(0, clean.length - array.length);
+    return {
+        base,
+        array,
+        optional,
+    };
+};
+
+const composeTypename = (base: string, array: string, optional: boolean) => {
+    return `${base}${array}${optional ? "?" : ""}`;
+};
+
+const normalizeSourceTypename = (typename: string) => {
+    const meta = splitTypename(typename);
+    const base = meta.base === "auto" ? "int" : meta.base;
+    return composeTypename(base, meta.array, meta.optional);
+};
+
+const tryParseLiteral = (typename: string) => {
+    if (!typename.startsWith("#")) {
+        return null;
+    }
+    const raw = typename.slice(1).trim();
+    if (raw.match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/)) {
+        return Number(raw);
+    }
+    return raw;
+};
+
+const buildTypedefDatasource = (workbook: Workbook, currentSheet: Sheet) => {
+    const sources = new Map<string, Set<string>>();
+    const locations = new Map<string, string[]>();
+
+    for (const sourceWorkbook of workbook.context.workbooks) {
+        for (const sourceSheet of sourceWorkbook.sheets) {
+            if (sourceWorkbook.path === workbook.path && sourceSheet.name === currentSheet.name) {
+                continue;
+            }
+            if (sourceSheet.processors.some((processor) => processor.name === "typedef")) {
+                continue;
+            }
+            for (const field of sourceSheet.fields) {
+                if (field.name.startsWith("-")) {
+                    continue;
+                }
+                const typename = normalizeSourceTypename(field.typename);
+                sources.set(field.name, (sources.get(field.name) ?? new Set()).add(typename));
+                locations.set(field.name, [
+                    ...(locations.get(field.name) ?? []),
+                    `${sourceWorkbook.path}#${sourceSheet.name}.${field.name}`,
+                ]);
+            }
+        }
+    }
+
+    return {
+        resolve(name: string) {
+            const types = Array.from(sources.get(name) ?? []);
+            if (types.length === 0) {
+                return null;
+            }
+            assert(
+                types.length === 1,
+                `Typedef type source '${name}' is ambiguous: ${(locations.get(name) ?? []).join(
+                    ", "
+                )}`
+            );
+            return types[0];
+        },
+    };
+};
+
+const resolveTypedefType = (
+    workbook: Workbook,
+    sheet: Sheet,
+    datasource: ReturnType<typeof buildTypedefDatasource>,
+    localTypes: ReadonlySet<string>,
+    rawType: string
+) => {
+    const meta = splitTypename(rawType);
+    if (meta.base.startsWith("#")) {
+        assert(
+            meta.array.length === 0 && !meta.optional,
+            `Literal typedef field '${rawType}' is not allowed to use array or optional suffix`
+        );
+        return rawType;
+    }
+    if (localTypes.has(meta.base) || convertors[meta.base]) {
+        return rawType;
+    }
+    const sourceType = datasource.resolve(meta.base);
+    assert(!!sourceType, `Typedef type '${meta.base}' not found in ${workbook.path}#${sheet.name}`);
+    const sourceMeta = splitTypename(sourceType);
+    return composeTypename(
+        sourceMeta.base,
+        meta.array || sourceMeta.array,
+        meta.optional || sourceMeta.optional
+    );
+};
+
+export const typedefSheet = (workbook: Workbook, sheet: Sheet): TypedefWorkbook => {
+    checkType(sheet.data, Type.Sheet);
+
+    for (const key of ["comment", "key1", "key2", "value_type", "value_comment"]) {
+        assert(
+            sheet.fields.some((field) => field.name === key),
+            `Typedef field '${key}' is required in ${workbook.path}#${sheet.name}`
+        );
+    }
+
+    const drafts = new Map<string, TypedefDraft>();
+    const order: string[] = [];
+
+    for (const row of values<TRow>(sheet.data)) {
+        const key1 = toString(row["key1"]).trim();
+        if (!key1) {
+            continue;
+        }
+
+        const comment = toString(row["comment"]).trim();
+        const key2 = toString(row["key2"]).trim();
+        const valueType = toString(row["value_type"]).trim();
+        const valueComment = toString(row["value_comment"]).trim();
+
+        if (!drafts.has(key1)) {
+            order.push(key1);
+        }
+
+        if (key2.includes("|")) {
+            const members = key2
+                .split("|")
+                .map((member) => member.trim())
+                .filter((member) => member);
+            assert(members.length > 0, `Typedef union '${key1}' has no members`);
+            assert(valueType, `Typedef union '${key1}' is missing discriminator`);
+
+            const previous = drafts.get(key1);
+            assert(
+                !previous || previous.kind === "union",
+                `Typedef '${key1}' cannot mix object fields and union members`
+            );
+
+            if (!previous) {
+                drafts.set(key1, {
+                    kind: "union",
+                    name: key1,
+                    comment,
+                    discriminator: valueType,
+                    members,
+                });
+            } else {
+                const unionDraft = previous as TypedefDraftUnion;
+                assert(
+                    unionDraft.discriminator === valueType,
+                    `Typedef union '${key1}' discriminator mismatch: ` +
+                        `'${unionDraft.discriminator}' !== '${valueType}'`
+                );
+                unionDraft.members = members;
+                if (comment && !unionDraft.comment) {
+                    unionDraft.comment = comment;
+                }
+            }
+            continue;
+        }
+
+        assert(key2, `Typedef '${key1}' field name is required`);
+        assert(valueType, `Typedef '${key1}.${key2}' field type is required`);
+
+        const previous = drafts.get(key1);
+        assert(
+            !previous || previous.kind === "object",
+            `Typedef '${key1}' cannot mix union members and object fields`
+        );
+
+        const draft =
+            previous ??
+            ({
+                kind: "object",
+                name: key1,
+                comment,
+                fields: [],
+            } satisfies TypedefDraftObject);
+        const objectDraft = draft as TypedefDraftObject;
+        if (!previous) {
+            drafts.set(key1, objectDraft);
+        } else if (comment && !objectDraft.comment) {
+            objectDraft.comment = comment;
+        }
+        assert(
+            !objectDraft.fields.some((field) => field.name === key2),
+            `Typedef '${key1}' has duplicate field '${key2}'`
+        );
+        objectDraft.fields.push({
+            name: key2,
+            comment: valueComment,
+            rawType: valueType,
+        });
+    }
+
+    const localTypes = new Set(order);
+    const datasource = buildTypedefDatasource(workbook, sheet);
+    const types = order.map((name) => {
+        const draft = drafts.get(name)!;
+        if (draft.kind === "union") {
+            return {
+                kind: "union",
+                name: draft.name,
+                comment: draft.comment,
+                discriminator: draft.discriminator,
+                members: draft.members.slice(),
+            } satisfies TypedefUnion;
+        }
+        return {
+            kind: "object",
+            name: draft.name,
+            comment: draft.comment,
+            fields: draft.fields.map((field) => {
+                const type = resolveTypedefType(workbook, sheet, datasource, localTypes, field.rawType);
+                return {
+                    name: field.name,
+                    comment: field.comment,
+                    rawType: field.rawType,
+                    type,
+                    literal: tryParseLiteral(type) ?? undefined,
+                } satisfies TypedefField;
+            }),
+        } satisfies TypedefObject;
+    });
+
+    return {
+        path: workbook.path,
+        sheet: sheet.name,
+        types,
+    };
 };
 
 /**

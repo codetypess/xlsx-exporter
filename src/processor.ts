@@ -5,7 +5,13 @@ import {
     decltype,
     defineSheet,
     mapSheet,
+    typedefSheet,
 } from "./transform.js";
+import {
+    getTypedefWorkbook,
+    registerTypedefConvertors,
+    registerTypedefWorkbook,
+} from "./typedef.js";
 import { keys, values } from "./util.js";
 import {
     assert,
@@ -117,6 +123,28 @@ export const ColumnProcessor: Processor = async (
 
 export const GenTypeProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
     write(workbook, "gen-type", null!);
+};
+
+export const TypedefProcessor: Processor = async (workbook: Workbook, sheet: Sheet) => {
+    const typedefWorkbook = typedefSheet(workbook, sheet);
+    registerTypedefWorkbook(typedefWorkbook);
+    registerTypedefConvertors(typedefWorkbook);
+    if (!sheet.processors.some((processor) => processor.name === "typedef-write")) {
+        sheet.processors.push({
+            name: "typedef-write",
+            args: [],
+        });
+    }
+    sheet.data = {};
+    sheet.ignore = true;
+};
+
+export const TypedefWriteProcessor: Processor = async (workbook: Workbook) => {
+    const typedefWorkbook = getTypedefWorkbook(workbook);
+    if (!typedefWorkbook) {
+        return;
+    }
+    write(workbook, "typedef", typedefWorkbook as unknown as TObject);
 };
 
 export const AutoRegisterProcessor: Processor = async (workbook: Workbook) => {

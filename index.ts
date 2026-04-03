@@ -24,6 +24,8 @@ import {
     GenTypeProcessor,
     MapProcessor,
     mergeSheet,
+    TypedefProcessor,
+    TypedefWriteProcessor,
     registerStringify,
     simpleSheet,
     StringifyProcessor,
@@ -65,6 +67,11 @@ registerProcessor("config", ConfigProcessor, { stage: "pre-stringify", priority:
 registerProcessor("map", MapProcessor, { stage: "pre-stringify", priority: 800 });
 registerProcessor("collapse", CollapseProcessor, { stage: "pre-stringify", priority: 800 });
 registerProcessor("column", ColumnProcessor, { stage: "pre-stringify", priority: 800 });
+registerProcessor("typedef", TypedefProcessor, { stage: "after-read" });
+registerProcessor("typedef-write", TypedefWriteProcessor, {
+    stage: "pre-stringify",
+    priority: -100,
+});
 registerProcessor("stringify", StringifyProcessor, {
     stage: "stringify",
     priority: 900,

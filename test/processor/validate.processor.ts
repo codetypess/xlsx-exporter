@@ -4,7 +4,7 @@ import { basename, dirname, join, normalize, resolve } from "path";
 import * as xlsx from "../../index.js";
 import { mergeTypeFile, validateJson } from "../../src/validate.js";
 
-const VERSION = "v2";
+const VERSION = "v3";
 
 let initedSchema = false;
 
@@ -141,7 +141,10 @@ const genSchema = async () => {
 };
 
 const validate = async (workbook: xlsx.Workbook) => {
-    const schemaPath = resolve("./", `test/output/client/schema/types/${workbook.name}.schema.ts`);
+    const schemaPath = resolve(
+        "./",
+        `test/output/client/schema/types/${workbook.name}.xlsx.schema.ts`
+    );
     const jsonPath = `test/output/client/data/${workbook.name}.json`;
     const pName = xlsx.toPascalCase(workbook.name);
     const schemaName = `generated${pName}TableSchema`;

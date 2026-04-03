@@ -1,5 +1,5 @@
 // AUTO GENERATED DO NOT MODIFY!
-// MERGED FROM build/client/types/task.ts AND test/output/client/types/task.ts
+// MERGED FROM build/client/types/task.xlsx.ts AND test/output/client/types/task.xlsx.ts
 
 import {
     Items,

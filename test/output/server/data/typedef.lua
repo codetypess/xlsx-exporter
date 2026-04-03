@@ -1,0 +1,25 @@
+return {
+  main = {
+    [1001] = {
+      args = {
+        count = 1,
+        id = 5,
+        kind = "kill_monster",
+      },
+      condition = "mainline_event",
+      id = 1001,
+    },
+    [1002] = {
+      args = {
+        count = 1,
+        duration = 2,
+        id = 71001,
+        kind = "collect_coin",
+      },
+      condition = "mainline_event",
+      id = 1002,
+    },
+  },
+  typedef = {
+  },
+}

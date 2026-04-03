@@ -12,34 +12,54 @@ import "./rule/task.rule.js";
 const t = Date.now();
 
 const OUTPUT_DIR = "test/output";
+const makeSheetTypeFile = (workbookName: string, sheetName: string) => {
+    return `${workbookName}.${sheetName}.xlsx`;
+};
 
 xlsx.registerWriter("client", (workbook, processor, data) => {
     if (processor === "define") {
-        const name = xlsx.toPascalCase(data["!name"] ?? workbook.name);
-        const marshal = `export const ${name} = `;
+        const exportName = xlsx.toPascalCase(data["!name"] ?? workbook.name);
+        const fileName = `${String(data["!name"] ?? workbook.name)}.xlsx`;
+        const marshal = `export const ${exportName} = `;
         xlsx.writeFile(
-            `${OUTPUT_DIR}/client/define/${name}.ts`,
+            `${OUTPUT_DIR}/client/define/${fileName}.ts`,
             xlsx.stringifyTs(data, { indent: 4, marshal })
         );
-        defines.add(name);
+        defines.add(fileName);
     } else if (processor === "stringify") {
         xlsx.writeFile(
             `${OUTPUT_DIR}/client/data/${workbook.name}.json`,
             xlsx.stringifyJson(data, { indent: 2 })
         );
     } else if (processor === "gen-type") {
+        const fileName = `${workbook.name}.xlsx`;
         const content = xlsx.genTsType(workbook, (typename) => {
             return {
                 type: makeTypename(typename),
                 path: "../define/index.js",
             };
         });
-        xlsx.writeFile(`build/client/types/${workbook.name}.ts`, content);
-        const typePath = `${OUTPUT_DIR}/client/types/${workbook.name}.ts`;
+        xlsx.writeFile(`build/client/types/${fileName}.ts`, content);
+        const typePath = `${OUTPUT_DIR}/client/types/${fileName}.ts`;
         if (!fs.existsSync(typePath)) {
-            xlsx.writeFile(`${OUTPUT_DIR}/client/types/${workbook.name}.ts`, content);
+            xlsx.writeFile(typePath, content);
         }
-        types.add(workbook.name);
+        types.add(fileName);
+    } else if (processor === "typedef") {
+        const fileName = makeSheetTypeFile(
+            workbook.name,
+            String((data as Record<string, unknown>)["sheet"])
+        );
+        const content = xlsx.genTsTypedef(workbook, (typename) => {
+            return {
+                type: makeTypename(typename),
+                path: "./index.js",
+            };
+        });
+        if (content) {
+            xlsx.writeFile(`${OUTPUT_DIR}/client/define/${fileName}.ts`, content);
+            defines.add(fileName);
+        }
     } else {
         throw new Error(`Unknown handler processor: ${processor}`);
     }
@@ -71,11 +91,25 @@ xlsx.registerWriter("server", (workbook, processor, data) => {
                 ${content}
             `)
         );
+    } else if (processor === "typedef") {
+        const content = xlsx.genLuaTypedef(workbook, (typename) => {
+            return { type: makeTypename(typename) };
+        });
+        if (content) {
+            xlsx.writeFile(
+                `${OUTPUT_DIR}/server/types/${workbook.name}_typedef.lua`,
+                xlsx.outdent(`
+                    -- AUTO GENERATED, DO NOT MODIFY!
+                    
+                    ${content}
+                `)
+            );
+        }
     } else {
         throw new Error(`Unknown handler processor: ${processor}`);
     }
 });
 
-await xlsx.parse(["test/res/item.xlsx", "test/res/task.xlsx"]);
+await xlsx.parse(["test/res/item.xlsx", "test/res/task.xlsx", "test/res/typedef.xlsx"]);
 
 console.log(Date.now() - t);
