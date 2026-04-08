@@ -1,11 +1,11 @@
 import * as xlsx from "fastxlsx";
 import { basename } from "path";
+import { getContext } from "./context.js";
+import type { CheckerType } from "./contracts.js";
 import { BuiltinChecker } from "./contracts.js";
-import { getContext } from "./context-store.js";
 import { convertValue } from "./conversion.js";
 import { assert, doing, error } from "./errors.js";
 import { DEFAULT_TAG, DEFAULT_WRITER, processors, writers } from "./registry.js";
-import type { RuntimeChecker } from "./runtime-checker.js";
 import { type Field, type Sheet, type TCell, type TRow, Type } from "./schema.js";
 import { checkType, ignoreField, toString } from "./value.js";
 
@@ -76,7 +76,7 @@ export const parseChecker = (
                 s = s.slice(1);
             }
             using _ = doing(`Parsing checker at ${location}: '${s}'`);
-            let checker: RuntimeChecker | undefined;
+            let checker: CheckerType | undefined;
             if (s.startsWith("@")) {
                 const [, name = "", arg = ""] = s.match(/^@(\w+)(?:\((.*?)\))?$/) ?? [];
                 checker = {
@@ -306,9 +306,9 @@ export const readBody = (path: string, data: xlsx.Workbook) => {
                 break;
             }
         }
-        const refers: Record<string, { checker: RuntimeChecker; field: Field }> = {};
+        const refers: Record<string, { checker: CheckerType; field: Field }> = {};
         for (const field of sheet.fields) {
-            for (const checker of field.checkers as RuntimeChecker[]) {
+            for (const checker of field.checkers as CheckerType[]) {
                 if (checker.name === BuiltinChecker.Refer) {
                     const name = checker.args[0];
                     const referField = sheet.fields.find((f) => f.name === name);
@@ -354,7 +354,7 @@ export const readBody = (path: string, data: xlsx.Workbook) => {
                         cell.r,
                         field.index,
                         toString(cell)
-                    ) as RuntimeChecker[];
+                    ) as CheckerType[];
                 }
             }
         }

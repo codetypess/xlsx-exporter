@@ -1,25 +1,19 @@
+import { values } from "../util.js";
+import { addContext, clearRunningContext, getContexts, setRunningContext } from "./context.js";
+import type { CheckerType } from "./contracts.js";
 import { BuiltinChecker, type CheckerContext } from "./contracts.js";
-import {
-    addContext,
-    clearRunningContext,
-    getContexts,
-    setRunningContext,
-} from "./context-store.js";
 import { assert, doing, error } from "./errors.js";
 import {
     checkerParsers,
     options,
-    processors,
     type ProcessorOption,
+    processors,
     type ProcessorType,
     writers,
 } from "./registry.js";
-import type { RuntimeChecker } from "./runtime-checker.js";
 import { type Field, type Sheet, type TCell, type TObject, type TRow, Type } from "./schema.js";
 import { checkType, copyTag } from "./value.js";
-import { Context } from "./workbook.js";
-import { Workbook } from "./workbook.js";
-import { values } from "../util.js";
+import { Context, Workbook } from "./workbook.js";
 
 const MAX_ERRORS = 50;
 
@@ -33,8 +27,8 @@ export const resolveChecker = () => {
             for (const sheet of workbook.sheets) {
                 using _ = doing(`Resolving checker in '${workbook.path}#${sheet.name}'`);
                 for (const field of sheet.fields) {
-                    const checkers = (field.checkers as RuntimeChecker[]).slice();
-                    (field.checkers as RuntimeChecker[]).forEach((v) => {
+                    const checkers = (field.checkers as CheckerType[]).slice();
+                    (field.checkers as CheckerType[]).forEach((v) => {
                         if (v.name === BuiltinChecker.Refer) {
                             checkers.push(...Object.values(v.refers).flat());
                         }
@@ -42,9 +36,13 @@ export const resolveChecker = () => {
                     for (const checker of checkers) {
                         const parser = checkerParsers[checker.name];
                         if (!parser) {
-                            error(`Checker parser not found at ${checker.location}: '${checker.name}'`);
+                            error(
+                                `Checker parser not found at ${checker.location}: '${checker.name}'`
+                            );
                         }
-                        using __ = doing(`Parsing checker at ${checker.location}: ${checker.source}`);
+                        using __ = doing(
+                            `Parsing checker at ${checker.location}: ${checker.source}`
+                        );
                         assert(!checker.exec, `Checker already parsed: ${checker.location}`);
                         checker.exec = parser(ctx, ...checker.args);
                     }
@@ -91,7 +89,7 @@ export const copyWorkbook = () => {
 const invokeReferChecker = (
     ctx: CheckerContext,
     cell: TCell,
-    checkers: RuntimeChecker[],
+    checkers: CheckerType[],
     errors: string[]
 ) => {
     for (const checker of checkers) {
@@ -124,7 +122,7 @@ const invokeReferChecker = (
 };
 
 const invokeChecker = (workbook: Workbook, sheet: Sheet, field: Field, errors: string[]) => {
-    const checkers = (field.checkers as RuntimeChecker[]).filter(
+    const checkers = (field.checkers as CheckerType[]).filter(
         (c) => !options.suppressCheckers.includes(c.name)
     );
     const ctx: CheckerContext = {
@@ -222,7 +220,10 @@ export const performProcessor = async (stage: ProcessorOption["stage"], writer?:
             for (const sheet of workbook.sheets) {
                 for (const { name, args } of sheet.processors) {
                     const processor = processors[name];
-                    if (processor.option.stage !== stage || options.suppressProcessors.includes(name)) {
+                    if (
+                        processor.option.stage !== stage ||
+                        options.suppressProcessors.includes(name)
+                    ) {
                         continue;
                     }
                     arr.push({
@@ -235,7 +236,9 @@ export const performProcessor = async (stage: ProcessorOption["stage"], writer?:
             }
             arr.sort((a, b) => a.processor.option.priority - b.processor.option.priority);
             for (const { processor, sheet, args, name } of arr) {
-                using _ = doing(`Performing processor '${name}' in '${workbook.path}#${sheet.name}'`);
+                using _ = doing(
+                    `Performing processor '${name}' in '${workbook.path}#${sheet.name}'`
+                );
                 try {
                     await processor.exec(workbook, sheet, ...args);
                 } catch (e) {

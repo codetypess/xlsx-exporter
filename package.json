@@ -1,6 +1,6 @@
 {
   "name": "xlsx-to",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Parse xlsx workbooks and export typed client/server assets.",
   "main": "./dist/index.js",
   "repository": {

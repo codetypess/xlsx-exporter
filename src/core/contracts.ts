@@ -1,6 +1,16 @@
 import type { Field, Sheet, TArray, TCell, TObject, TRow, TValue } from "./schema.js";
 import type { Context, Workbook } from "./workbook.js";
 
+export type CheckerType = {
+    readonly name: string;
+    readonly force: boolean;
+    readonly source: string;
+    readonly args: string[];
+    readonly location: string;
+    readonly refers: Record<string, CheckerType[]>;
+    exec: Checker;
+};
+
 export type CheckerContext = {
     workbook: Workbook;
     sheet: Sheet;

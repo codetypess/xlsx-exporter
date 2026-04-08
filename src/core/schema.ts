@@ -1,4 +1,5 @@
 import type { StringifyContext } from "../stringify.js";
+import type { CheckerType } from "./contracts.js";
 
 export const enum Type {
     Row = "xlsx.type.row",
@@ -47,7 +48,7 @@ export type Field = {
     readonly name: string;
     readonly typename: string;
     readonly writers: string[];
-    readonly checkers: any[];
+    readonly checkers: CheckerType[];
     readonly comment: string;
     readonly location: string;
     realtype?: string;

@@ -30,9 +30,9 @@ import {
     TypedefProcessor,
     TypedefWriteProcessor,
 } from "../builtins/processors.js";
-import { tableConvertor } from "../table.js";
 import { BuiltinChecker } from "../core/contracts.js";
 import { registerChecker, registerProcessor, registerType } from "../core/registry.js";
+import { tableConvertor } from "../core/table.js";
 
 let registered = false;
 
