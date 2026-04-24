@@ -1,4 +1,10 @@
 return {
+  coin = {
+    [71001] = {
+      condition = "mainline_event",
+      id = 71001,
+    },
+  },
   main = {
     [1001] = {
       args = {

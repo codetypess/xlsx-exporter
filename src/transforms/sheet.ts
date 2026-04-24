@@ -112,6 +112,8 @@ type TypedefDraftField = {
     readonly name: string;
     readonly comment: string;
     readonly rawType: string;
+    readonly checkerSource?: string;
+    readonly checkerLocation?: string;
 };
 
 type TypedefDraftObject = {
@@ -188,6 +190,7 @@ export const typedefSheet = (workbook: Workbook, sheet: Sheet): TypedefWorkbook 
         const key2 = toString(row["key2"]).trim();
         const valueType = toString(row["value_type"]).trim();
         const valueComment = toString(row["value_comment"]).trim();
+        const valueChecker = toString(row["value_checker"]).trim();
 
         if (!drafts.has(key1)) {
             order.push(key1);
@@ -261,6 +264,8 @@ export const typedefSheet = (workbook: Workbook, sheet: Sheet): TypedefWorkbook 
             name: key2,
             comment: valueComment,
             rawType: valueType,
+            checkerSource: valueChecker || undefined,
+            checkerLocation: valueChecker ? row["value_checker"]?.r : undefined,
         });
     }
 
@@ -287,6 +292,8 @@ export const typedefSheet = (workbook: Workbook, sheet: Sheet): TypedefWorkbook 
                     rawType: field.rawType,
                     type,
                     literal: tryParseLiteral(type) ?? undefined,
+                    checkerSource: field.checkerSource,
+                    checkerLocation: field.checkerLocation,
                 } satisfies TypedefField;
             }),
         } satisfies TypedefObject;

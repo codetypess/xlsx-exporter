@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import * as xlsx from "../index";
+import { performChecker } from "../src/core/pipeline";
 
 const makeObjectType = (name: string, literal: string) => {
     return {
@@ -59,6 +60,12 @@ const makeRow = (cells: Record<string, xlsx.TCell>) => {
         "!type": xlsx.Type.Row,
         ...cells,
     } as xlsx.TRow;
+};
+
+const clearAllContexts = () => {
+    for (const ctx of xlsx.getContexts().slice()) {
+        xlsx.removeContext(ctx);
+    }
 };
 
 export const runTypedefRegressionTests = async () => {
@@ -169,5 +176,90 @@ export const runTypedefRegressionTests = async () => {
             () => xlsx.convertValue(`{"id":1}`, "RegressionInferredIdArgs"),
             /Convert value error: '\{"id":1\}' -> type 'RegressionInferredIdArgs'/
         );
+    }
+
+    {
+        clearAllContexts();
+        const ctx = xlsx.addContext(new xlsx.Context("client", "typedef-field-checker"));
+        const workbook = new xlsx.Workbook(ctx, "test/regression/typedef-field-checker.xlsx");
+        const mainSheet = makeSheet("main", [{ name: "args", typename: "RegressionNestedArgs" }]);
+        const coinSheet = makeSheet("coin", [{ name: "id", typename: "int" }]);
+        const typedefWorkbook = {
+            path: "test/regression/typedef-field-checker.xlsx",
+            sheet: "typedef",
+            types: [
+                {
+                    kind: "object",
+                    name: "RegressionCollectCoinArgs",
+                    comment: "",
+                    fields: [
+                        {
+                            name: "kind",
+                            comment: "",
+                            rawType: "#collect_coin",
+                            type: "#collect_coin",
+                            literal: "collect_coin",
+                        },
+                        {
+                            name: "id",
+                            comment: "",
+                            rawType: "int",
+                            type: "int",
+                            checkerSource: "#coin.id",
+                            checkerLocation: "G2",
+                        },
+                    ],
+                },
+                {
+                    kind: "union",
+                    name: "RegressionNestedArgs",
+                    comment: "",
+                    discriminator: "kind",
+                    members: ["RegressionCollectCoinArgs"],
+                },
+            ],
+        } satisfies xlsx.TypedefWorkbook;
+
+        mainSheet.data["1"] = makeRow({
+            args: xlsx.makeCell(
+                {
+                    kind: "collect_coin",
+                    id: 404,
+                },
+                "RegressionNestedArgs",
+                "A2",
+                `{"kind":"collect_coin","id":404}`
+            ),
+        });
+        coinSheet.data["71001"] = makeRow({
+            id: xlsx.makeCell(71001, "int", "A2", "71001"),
+        });
+
+        ctx.add(workbook);
+        workbook.add(mainSheet);
+        workbook.add(coinSheet);
+        xlsx.registerTypedefWorkbook(typedefWorkbook);
+        assert.equal(xlsx.hasTypedefChecker("RegressionNestedArgs"), true);
+        assert.equal(xlsx.hasTypedefChecker("RegressionCollectCoinArgs"), true);
+        assert.equal(xlsx.hasTypedefChecker("RegressionSharedArg"), false);
+
+        let failure: Error | undefined;
+        try {
+            performChecker();
+        } catch (e) {
+            failure = e as Error;
+        }
+        assert(failure);
+        assert.match(failure.message, /field: args\.id/);
+        assert.match(failure.message, /checker: #coin\.id/);
+        assert.match(failure.message, /typedef: RegressionNestedArgs -> RegressionCollectCoinArgs\.id/);
+        assert.match(
+            failure.message,
+            /defined: test\/regression\/typedef-field-checker\.xlsx#typedef G2/
+        );
+        assert.match(failure.message, /A2\.id: 404/);
+
+        xlsx.removeContext(ctx);
+        clearAllContexts();
     }
 };

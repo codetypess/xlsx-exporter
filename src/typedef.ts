@@ -15,6 +15,8 @@ export type TypedefField = {
     readonly rawType: string;
     readonly type: string;
     readonly literal?: TypedefLiteral;
+    readonly checkerSource?: string;
+    readonly checkerLocation?: string;
 };
 
 export type TypedefObject = {
@@ -50,10 +52,11 @@ const typedefWorkbooks = new Map<string, TypedefWorkbook>();
 const typedefWorkbookKeysByPath = new Map<string, Set<string>>();
 const typedefEntries = new Map<string, TypedefEntry>();
 const typedefOwners = new Map<string, TypedefOwner>();
+const typedefCheckerPresence = new Map<string, boolean>();
 
 const basicTypes = ["string", "number", "boolean", "unknown", "object"];
 
-const splitTypename = (typename: string) => {
+export const splitTypename = (typename: string) => {
     const optional = typename.endsWith("?");
     const clean = optional ? typename.slice(0, -1) : typename;
     const array = clean.match(/(?:\[\d*\])+$/)?.[0].replace(/\d+/g, "") ?? "";
@@ -78,6 +81,10 @@ const tryParseLiteral = (typename: string): TypedefLiteral | null => {
 
 const stringifyLiteral = (value: TypedefLiteral) => {
     return typeof value === "number" ? String(value) : JSON.stringify(value);
+};
+
+const makeLiteralKey = (value: TypedefLiteral) => {
+    return `${typeof value}:${String(value)}`;
 };
 
 const makeTypedefWorkbookKey = (path: string, sheet: string) => {
@@ -126,6 +133,7 @@ export const registerTypedefWorkbook = (typedefWorkbook: TypedefWorkbook) => {
         typedefEntries.set(type.name, type);
         typedefOwners.set(type.name, nextOwners.get(type.name)!);
     }
+    typedefCheckerPresence.clear();
 };
 
 const parseTypedefJson = (str: string) => {
@@ -187,53 +195,12 @@ export const registerTypedefConverters = (typedefWorkbook: TypedefWorkbook) => {
         return result;
     };
 
-    const makeLiteralKey = (value: TypedefLiteral) => {
-        return `${typeof value}:${String(value)}`;
-    };
-
-    const resolveUnionObject = (union: TypedefUnion) => {
-        const members = new Map<string, TypedefObject>();
-        for (const member of union.members) {
-            const objectType = getTypedef(member);
-            assert(
-                !!objectType && objectType.kind === "object",
-                `Typedef union '${union.name}' member '${member}' must be an object type`
-            );
-            const discriminatorField = objectType.fields.find(
-                (field) => field.name === union.discriminator
-            );
-            assert(
-                !!discriminatorField?.literal,
-                `Typedef union '${union.name}' member '${member}' must define ` +
-                    `literal field '${union.discriminator}'`
-            );
-            members.set(makeLiteralKey(discriminatorField.literal), objectType);
-        }
-        return members;
-    };
-
     for (const type of typedefWorkbook.types) {
         registerType(type.name, (value) => {
             const raw = parseTypedefJson(value);
             const current = getTypedef(type.name);
             assert(!!current, `Typedef '${type.name}' is not registered`);
-            if (current.kind === "object") {
-                return convertObject(current, raw);
-            }
-            assert(
-                !!raw && typeof raw === "object" && !Array.isArray(raw),
-                `Typedef '${current.name}' expects an object`
-            );
-            const source = raw as Record<string, unknown>;
-            const member = resolveUnionObject(current).get(
-                makeLiteralKey(source[current.discriminator] as TypedefLiteral)
-            );
-            assert(
-                !!member,
-                `Typedef union '${current.name}' cannot resolve discriminator ` +
-                    `'${current.discriminator}'`
-            );
-            return convertObject(member, source);
+            return convertObject(resolveTypedefObject(current, raw), raw);
         });
     }
 };
@@ -253,6 +220,100 @@ export const getTypedefWorkbook = (pathOrWorkbook: string | Workbook, sheet?: st
 
 export const getTypedef = (typename: string) => {
     return typedefEntries.get(typename) ?? null;
+};
+
+export const getTypedefOwner = (typename: string) => {
+    const owner = typedefOwners.get(typename);
+    if (!owner) {
+        return null;
+    }
+    return {
+        path: owner.path,
+        sheet: owner.sheet,
+    };
+};
+
+const resolveUnionMembers = (union: TypedefUnion) => {
+    const members = new Map<string, TypedefObject>();
+    for (const member of union.members) {
+        const objectType = getTypedef(member);
+        assert(
+            !!objectType && objectType.kind === "object",
+            `Typedef union '${union.name}' member '${member}' must be an object type`
+        );
+        const discriminatorField = objectType.fields.find((field) => field.name === union.discriminator);
+        assert(
+            !!discriminatorField?.literal,
+            `Typedef union '${union.name}' member '${member}' must define ` +
+                `literal field '${union.discriminator}'`
+        );
+        members.set(makeLiteralKey(discriminatorField.literal), objectType);
+    }
+    return members;
+};
+
+export const resolveTypedefObject = (type: TypedefEntry, raw: unknown) => {
+    if (type.kind === "object") {
+        return type;
+    }
+    assert(!!raw && typeof raw === "object" && !Array.isArray(raw), `Typedef '${type.name}' expects an object`);
+    const source = raw as Record<string, unknown>;
+    const member = resolveUnionMembers(type).get(
+        makeLiteralKey(source[type.discriminator] as TypedefLiteral)
+    );
+    assert(
+        !!member,
+        `Typedef union '${type.name}' cannot resolve discriminator '${type.discriminator}'`
+    );
+    return member;
+};
+
+export const resolveTypedefObjectByTypename = (typename: string, raw: unknown) => {
+    const optional = typename.endsWith("?");
+    const clean = optional ? typename.slice(0, -1) : typename;
+    const array = clean.match(/(?:\[\d*\])+$/)?.[0] ?? "";
+    const base = clean.slice(0, clean.length - array.length);
+    const type = getTypedef(base);
+    if (!type) {
+        return null;
+    }
+    return resolveTypedefObject(type, raw);
+};
+
+const hasTypedefCheckerEntry = (type: TypedefEntry, visiting: Set<string>) => {
+    const cached = typedefCheckerPresence.get(type.name);
+    if (cached !== undefined) {
+        return cached;
+    }
+    if (visiting.has(type.name)) {
+        return false;
+    }
+    visiting.add(type.name);
+    let result = false;
+    if (type.kind === "union") {
+        result = type.members.some((member) => {
+            const entry = getTypedef(member);
+            return !!entry && hasTypedefCheckerEntry(entry, visiting);
+        });
+    } else {
+        result = type.fields.some((field) => {
+            if (field.checkerSource) {
+                return true;
+            }
+            return hasTypedefChecker(field.type, visiting);
+        });
+    }
+    visiting.delete(type.name);
+    typedefCheckerPresence.set(type.name, result);
+    return result;
+};
+
+export const hasTypedefChecker = (typename: string, visiting: Set<string> = new Set()) => {
+    const type = getTypedef(splitTypename(typename).base);
+    if (!type) {
+        return false;
+    }
+    return hasTypedefCheckerEntry(type, visiting);
 };
 
 export const hasTypedefWorkbook = (pathOrWorkbook: string | Workbook) => {

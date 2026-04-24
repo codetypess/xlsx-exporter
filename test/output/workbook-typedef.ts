@@ -551,6 +551,18 @@ export interface TaskWeeklyRow {
 }
 
 // file: test/res/typedef.xlsx
+export interface TypedefCoinRow {
+    /**
+     * ### (location: A1) (type: int) (checker: x) (writer: client|server)
+     */
+    id: { v: number } & TCell;
+    /**
+     * 条件 (location: C1) (type: string) (checker: x) (writer: client|server)
+     */
+    condition: { v: string } & TCell;
+}
+
+// file: test/res/typedef.xlsx
 export interface TypedefMainRow {
     /**
      * ### (location: A1) (type: int) (checker: x) (writer: client|server)
@@ -602,6 +614,10 @@ export interface TypedefTypedefRow {
      * 注释 (location: F2) (type: string?) (checker: x) (writer: client|server)
      */
     value_comment: { v?: string } & TCell;
+    /**
+     * 检查器 (location: G2) (type: string?) (checker: x) (writer: client|server)
+     */
+    value_checker: { v?: string } & TCell;
 }
 
 
