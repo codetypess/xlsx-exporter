@@ -101,7 +101,9 @@ export function convertValue(cell: TCell | string, typename: string) {
         } else {
             result = converter(v) ?? null;
         }
-    } catch {}
+    } catch {
+        /** ignore */
+    }
 
     if (result === null) {
         let r = "";

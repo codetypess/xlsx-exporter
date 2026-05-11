@@ -1,7 +1,7 @@
 import { basename } from "path";
-import { type Context, Workbook } from "./core/workbook";
 import { type TCell, type TRow, Type } from "./core/schema";
 import { checkType, isNotNull } from "./core/value";
+import { type Context, Workbook } from "./core/workbook";
 import { StringBuffer } from "./stringify";
 import { TypeImporter, TypeResolver } from "./typedef";
 import { format, keys, toPascalCase } from "./util";
@@ -19,6 +19,7 @@ const isSame = (a: unknown, b: unknown) => {
 
 export type RowFilter = {
     key: string;
+    /** value can be a literal or a reference to value in row if refer is provided */
     value: string | number;
     refer?: string;
 };

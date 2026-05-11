@@ -1,9 +1,9 @@
-import { ColumnIndexer, RowFilter } from "../indexer";
 import { CheckerParser } from "../core/contracts";
 import { convertValue } from "../core/conversion";
 import { error } from "../core/errors";
 import { type TCell, type TObject, type TValue } from "../core/schema";
 import { Context } from "../core/workbook";
+import { ColumnIndexer, RowFilter } from "../indexer";
 import { keys } from "../util";
 
 export const SizeCheckerParser: CheckerParser = (ctx, arg) => {
@@ -267,25 +267,33 @@ export const IndexCheckerParser: CheckerParser = (
         }
 
         return ast.value.resolve(cell.v, errors, (value) => {
-            if (ast.target.filter.length) {
-                ast.target.filter.forEach((filter) => {
-                    if (filter.refer) {
-                        const refer = row[filter.refer] as TCell | undefined;
-                        if (!refer || refer.v === null || refer.v === undefined) {
-                            errors.push(`not found ${filter.refer} in row`);
-                            return false;
-                        } else if (typeof refer.v !== "string" && typeof refer.v !== "number") {
-                            errors.push(`refer type error: data=${refer.v} type=${typeof refer.v}`);
-                            return false;
-                        } else {
-                            filter.value = refer.v;
-                        }
-                    }
-                });
-                return indexer.has(value, ast.target.filter);
-            } else {
+            if (ast.target.filter.length === 0) {
                 return indexer.has(value);
             }
+
+            const filter: RowFilter[] = [];
+            for (const entry of ast.target.filter) {
+                if (!entry.refer) {
+                    filter.push(entry);
+                    continue;
+                }
+
+                const refer = row[entry.refer] as TCell | undefined;
+                if (!refer || refer.v === null || refer.v === undefined) {
+                    errors.push(`not found ${entry.refer} in row`);
+                    return false;
+                }
+                if (typeof refer.v !== "string" && typeof refer.v !== "number") {
+                    errors.push(`refer type error: data=${refer.v} type=${typeof refer.v}`);
+                    return false;
+                }
+                filter.push({
+                    ...entry,
+                    value: refer.v,
+                });
+            }
+
+            return indexer.has(value, filter);
         });
     };
 };

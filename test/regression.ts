@@ -144,7 +144,7 @@ export const runRegressionTests = async () => {
             cell: xlsx.makeCell(1, "int", "A2", "1"),
             errors: secondErrors,
         });
-        assert.equal(secondOk, true);
+        assert.equal(secondOk, false);
         assert.ok(secondErrors.includes("not found kind in row"));
 
         xlsx.removeContext(ctx);
