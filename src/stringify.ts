@@ -1,5 +1,6 @@
 import { type TArray, type TCell, type TObject, type TValue, Type } from "./core/schema";
 import { checkType, isNotNull } from "./core/value";
+import { TypeImporter, TypeResolver } from "./typedef";
 import { escape, isNumericKey, keys } from "./util";
 
 export class StringBuffer {
@@ -341,6 +342,8 @@ export type TsStringifyOption = {
     asconst?: boolean;
 };
 
+const defaultTypeResolver: TypeResolver = (typename) => ({ type: typename });
+
 export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
     const stacks: string[] = [];
     option = option ?? {};
@@ -519,17 +522,32 @@ export const stringifyTs = (data: TValue, option?: TsStringifyOption) => {
     return buffer.toString();
 };
 
-export const stringifyTsType = (data: TValue, option?: TsStringifyOption) => {
+export function stringifyTsType(data: TValue, option?: TsStringifyOption): string;
+export function stringifyTsType(
+    data: TValue,
+    resolver: TypeResolver,
+    option?: TsStringifyOption
+): string;
+export function stringifyTsType(
+    data: TValue,
+    resolverOrOption?: TypeResolver | TsStringifyOption,
+    maybeOption?: TsStringifyOption
+) {
     const stacks: string[] = [];
+    const resolver =
+        typeof resolverOrOption === "function" ? resolverOrOption : defaultTypeResolver;
+    let option = typeof resolverOrOption === "function" ? maybeOption : resolverOrOption;
     option = option ?? {};
     option.indent = Math.max(option.indent ?? 4, 0);
 
-    const buffer = new StringBuffer(option.indent);
+    const typeImporter = new TypeImporter(resolver);
+
+    const typeBuffer = new StringBuffer(option.indent);
     const ctx: StringifyContext = {
         format: "ts",
         indent: option.indent,
         precision: option.precision,
-        buffer,
+        buffer: typeBuffer,
         writeValue,
         writeArray,
         writeObject,
@@ -547,19 +565,25 @@ export const stringifyTsType = (data: TValue, option?: TsStringifyOption) => {
 
     function writeValue(value: TValue) {
         if (typeof value === "number") {
-            buffer.writeString("number");
+            typeBuffer.writeString("number");
         } else if (typeof value === "boolean") {
-            buffer.writeString("boolean");
+            typeBuffer.writeString("boolean");
         } else if (value === null) {
-            buffer.writeString("null");
+            typeBuffer.writeString("null");
         } else if (value === undefined) {
-            buffer.writeString("undefined");
+            typeBuffer.writeString("undefined");
         } else if (typeof value === "string") {
-            buffer.writeString("string");
+            typeBuffer.writeString("string");
         } else if (Array.isArray(value)) {
             writeArray(value);
         } else if (typeof value === "object") {
             if (value["!type"] === Type.Cell) {
+                const rawType = value.t as string;
+                if (rawType && rawType !== "table") {
+                    const tsType = typeImporter.resolve(value.t as string).type;
+                    typeBuffer.writeString(tsType);
+                    return;
+                }
                 value = value.v;
             }
             if (typeof value !== "object" || value === null || value === undefined) {
@@ -584,9 +608,9 @@ export const stringifyTsType = (data: TValue, option?: TsStringifyOption) => {
 
         const ks = keys(value, isNotNull, value["!ignore"]);
         const space = ctx.indent > 0 ? " " : "";
-        buffer.writeString("{");
-        buffer.linefeed();
-        buffer.indent();
+        typeBuffer.writeString("{");
+        typeBuffer.linefeed();
+        typeBuffer.indent();
         for (let i = 0; i < ks.length; i++) {
             const k = ks[i];
             const v = value[k];
@@ -595,24 +619,24 @@ export const stringifyTsType = (data: TValue, option?: TsStringifyOption) => {
                     writeValue(v["!enum"]);
                     continue;
                 } else if (v["!comment"]) {
-                    writeComment(v["!comment"], buffer);
+                    writeComment(v["!comment"], typeBuffer);
                 }
             }
             stacks.push(k);
-            buffer.padding();
+            typeBuffer.padding();
             if (k.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/) || isNumericKey(k)) {
-                buffer.writeString(`${k}:${space}`);
+                typeBuffer.writeString(`${k}:${space}`);
             } else {
-                buffer.writeString(`"${k}":${space}`);
+                typeBuffer.writeString(`"${k}":${space}`);
             }
             writeValue(v);
-            buffer.writeString(";");
-            buffer.linefeed();
+            typeBuffer.writeString(";");
+            typeBuffer.linefeed();
             stacks.pop();
         }
-        buffer.unindent();
-        buffer.padding();
-        buffer.writeString("}");
+        typeBuffer.unindent();
+        typeBuffer.padding();
+        typeBuffer.writeString("}");
     }
 
     function writeArray(value: TArray) {
@@ -621,26 +645,38 @@ export const stringifyTsType = (data: TValue, option?: TsStringifyOption) => {
             return;
         }
 
-        buffer.writeString("[");
-        buffer.linefeed();
-        buffer.indent();
+        typeBuffer.writeString("[");
+        typeBuffer.linefeed();
+        typeBuffer.indent();
         for (let i = 0; i < value.length; i++) {
             const v = value[i];
-            buffer.padding();
+            typeBuffer.padding();
             writeValue(v);
-            buffer.writeString(",");
-            buffer.linefeed();
+            typeBuffer.writeString(",");
+            typeBuffer.linefeed();
         }
-        buffer.unindent();
-        buffer.padding();
-        buffer.writeString("]");
+        typeBuffer.unindent();
+        typeBuffer.padding();
+        typeBuffer.writeString("]");
     }
 
     if (option.marshal) {
-        buffer.writeString(option.marshal);
+        typeBuffer.writeString(option.marshal);
     }
 
     writeValue(data);
 
+    const buffer = new StringBuffer(option.indent);
+    buffer.writeLine(`// AUTO GENERATED, DO NOT MODIFY!`);
+    buffer.writeLine("");
+
+    const imports = typeImporter.toString();
+    if (imports.length > 0) {
+        buffer.writeLine(imports);
+        buffer.writeLine("");
+    }
+
+    buffer.writeString(typeBuffer.toString());
+
     return buffer.toString();
-};
+}
